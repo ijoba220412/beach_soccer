@@ -4,6 +4,20 @@ import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp, upd
 import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List, X, Printer, PartyPopper } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
+const calculateAge = (birthDate: string | undefined) => {
+  if (!birthDate || birthDate.length !== 10) return '-';
+  const [day, month, year] = birthDate.split('/');
+  if (!day || !month || !year) return '-';
+  const birth = new Date(Number(year), Number(month) - 1, Number(day));
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 const getBirthdayStatus = (dateStr: string | undefined) => {
   if (!dateStr || dateStr.length !== 10) return null;
   const [d, m] = dateStr.split('/');
@@ -972,7 +986,7 @@ export default function App() {
                               <div>
                                  <p className="text-[10px] uppercase font-bold text-stone-400">Nascimento</p>
                                  {t.birthDate ? (
-                                    <p className="font-bold text-stone-800 flex items-center gap-1"><Calendar size={12} className="text-orange-500 opacity-70"/> {t.birthDate || '-'}</p>
+                                    <p className="font-bold text-stone-800 flex items-center gap-1"><Calendar size={12} className="text-orange-500 opacity-70"/> {t.birthDate} ({calculateAge(t.birthDate)} anos)</p>
                                  ) : (
                                     <p className="font-bold text-stone-800">-</p>
                                  )}
@@ -1325,8 +1339,8 @@ export default function App() {
                                     <p className="font-black text-stone-800 mt-1">{selectedPlayer.position || '-'}</p>
                                   </div>
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
-                                    <p className="text-[10px] uppercase font-bold text-stone-400">Idade / Ano</p>
-                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.birthDate ? selectedPlayer.birthDate.split('/')[2] : '-'}</p>
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Idade</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.birthDate ? `${calculateAge(selectedPlayer.birthDate)} anos` : '-'}</p>
                                   </div>
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
                                     <p className="text-[10px] uppercase font-bold text-stone-400">Altura</p>
