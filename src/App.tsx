@@ -433,20 +433,30 @@ export default function App() {
       {/* Header Style (Beach & Ocean Vibes) */}
       <nav className="bg-emerald-900 p-4 text-white shadow-md relative z-10 overflow-hidden border-b-4 border-yellow-500 print:hidden">
         <div className="absolute inset-0 z-0 bg-emerald-900">
-          <img src="https://images.unsplash.com/photo-1544605481-64ffdc61922c?w=1600&q=80" className="w-full h-full object-cover opacity-20 mix-blend-overlay" alt="Beach Net" />
+          <img src="https://images.unsplash.com/photo-1544605481-64ffdc61922c?w=1600&q=80" className="w-full h-full object-cover opacity-20 mix-blend-overlay" alt="" />
         </div>
         <div className="max-w-6xl mx-auto flex justify-between items-center relative z-10">
           <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-wide">
-              <Trophy className="text-orange-400" /> Beach Soccer
-            </h1>
+            <div className="flex items-center gap-3">
+              <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-10 drop-shadow-md" />
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-tight leading-none">
+                  Beach Soccer
+                </h1>
+                <div className="flex justify-between w-full mt-0.5 px-0.5">
+                  <p className="text-yellow-400 font-bold text-[8.5px] uppercase tracking-[0.22em] leading-none">
+                    coaching Rafael cobra
+                  </p>
+                </div>
+              </div>
+            </div>
             {user && (
               <div className="hidden md:flex bg-emerald-900/60 p-1 rounded-xl backdrop-blur-sm border border-white/10">
                  <button 
                    onClick={() => setCurrentView('galeria')}
                    className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'galeria' ? 'bg-orange-500 shadow-sm' : 'hover:bg-emerald-700/50 text-emerald-100'}`}
                  >
-                   <Users size={18} /> Elencos
+                   <Users size={18} /> Jogadores
                  </button>
                  <button 
                    onClick={() => setCurrentView('cadastro')}
@@ -497,7 +507,7 @@ export default function App() {
              onClick={() => setCurrentView('galeria')}
              className={`flex-none px-4 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'galeria' ? 'bg-orange-500 text-white shadow-sm' : 'bg-emerald-800 text-emerald-200 hover:bg-emerald-700'}`}
            >
-             <Users size={16} /> Elencos
+             <Users size={16} /> Jogadores
            </button>
            <button 
              onClick={() => setCurrentView('cadastro')}
@@ -522,7 +532,7 @@ export default function App() {
               <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/60 to-transparent"></div>
             </div>
             <div className="relative z-10">
-              <Trophy size={80} className="mx-auto text-orange-400 mb-6 drop-shadow-lg" />
+              <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-24 mx-auto mb-6 drop-shadow-lg" />
               <h2 className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tight drop-shadow-md">O Maior Campeonato de Areia</h2>
               <p className="text-xl text-stone-200 mb-8 max-w-2xl mx-auto font-medium drop-shadow">
                 Faça login para gerenciar seu clube, registrar atletas e acompanhar a galeria das feras do beach soccer!
