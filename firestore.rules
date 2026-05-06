@@ -9,6 +9,10 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == 'allan.muniz88@gmail.com';
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -35,7 +39,7 @@ service cloud.firestore {
         && data.isVerified is bool
         && data.createdAt == request.time
         && data.updatedAt == request.time
-        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 300000));
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 800000));
     }
     
     function isValidTeamUpdate(data) {
@@ -48,17 +52,19 @@ service cloud.firestore {
         && data.isVerified == existing().isVerified
         && data.createdAt == existing().createdAt
         && data.updatedAt == request.time
-        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 300000));
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 800000));
     }
 
     match /teams/{teamId} {
-      allow read: if isAuthenticated() && (existing().isVerified == true || existing().ownerId == request.auth.uid);
-      allow list: if isAuthenticated() && (resource.data.isVerified == true || resource.data.ownerId == request.auth.uid);
+      allow read: if existing().isVerified == true || (request.auth != null && existing().ownerId == request.auth.uid) || isAdmin();
+      allow list: if resource.data.isVerified == true || (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidId(teamId) && isValidTeam(incoming()) && incoming().isVerified == false;
-      allow update: if isAuthenticated() && isValidId(teamId) && isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'playerPhoto', 'updatedAt'])
+      allow update: if isAuthenticated() && isValidId(teamId) && (
+        (isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'playerPhoto', 'updatedAt']))
+        ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['isVerified', 'updatedAt']) && incoming().isVerified is bool && incoming().updatedAt == request.time)
       );
-      allow delete: if isAuthenticated() && isValidId(teamId) && isOwner(existing().ownerId);
+      allow delete: if isAuthenticated() && isValidId(teamId) && (isOwner(existing().ownerId) || isAdmin());
     }
   }
 }
