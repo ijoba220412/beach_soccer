@@ -31,11 +31,17 @@ service cloud.firestore {
 
     function isValidTeam(data) {
       return data.keys().hasAll(['ownerId', 'teamName', 'coach', 'playerName', 'isVerified', 'createdAt', 'updatedAt']) 
-        && data.keys().size() >= 7 && data.keys().size() <= 8
         && data.ownerId == request.auth.uid
         && data.teamName is string && data.teamName.size() > 0 && data.teamName.size() <= 100
         && data.coach is string && data.coach.size() > 0 && data.coach.size() <= 100
         && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
+        && (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 100))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && (!('birthDate' in data) || (data.birthDate is string && data.birthDate.size() <= 20))
+        && (!('city' in data) || (data.city is string && data.city.size() <= 100))
+        && (!('position' in data) || (data.position is string && data.position.size() <= 50))
+        && (!('height' in data) || (data.height is string && data.height.size() <= 10))
+        && (!('weight' in data) || (data.weight is string && data.weight.size() <= 10))
         && data.isVerified is bool
         && data.createdAt == request.time
         && data.updatedAt == request.time
@@ -44,11 +50,17 @@ service cloud.firestore {
     
     function isValidTeamUpdate(data) {
       return data.keys().hasAll(['ownerId', 'teamName', 'coach', 'playerName', 'isVerified', 'createdAt', 'updatedAt']) 
-        && data.keys().size() >= 7 && data.keys().size() <= 8
         && data.ownerId == existing().ownerId
         && data.teamName is string && data.teamName.size() > 0 && data.teamName.size() <= 100
         && data.coach is string && data.coach.size() > 0 && data.coach.size() <= 100
         && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
+        && (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 100))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && (!('birthDate' in data) || (data.birthDate is string && data.birthDate.size() <= 20))
+        && (!('city' in data) || (data.city is string && data.city.size() <= 100))
+        && (!('position' in data) || (data.position is string && data.position.size() <= 50))
+        && (!('height' in data) || (data.height is string && data.height.size() <= 10))
+        && (!('weight' in data) || (data.weight is string && data.weight.size() <= 10))
         && data.isVerified == existing().isVerified
         && data.createdAt == existing().createdAt
         && data.updatedAt == request.time
@@ -60,7 +72,7 @@ service cloud.firestore {
       allow list: if resource.data.isVerified == true || (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidId(teamId) && isValidTeam(incoming()) && incoming().isVerified == false;
       allow update: if isAuthenticated() && isValidId(teamId) && (
-        (isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'playerPhoto', 'updatedAt']))
+        (isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'nickname', 'phone', 'birthDate', 'city', 'position', 'height', 'weight', 'playerPhoto', 'updatedAt']))
         ||
         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['isVerified', 'updatedAt']) && incoming().isVerified is bool && incoming().updatedAt == request.time)
       );

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { db, storage, auth } from './firebase';
+import React, { useState, useEffect, useMemo } from 'react';
+import { db, auth } from './firebase';
 import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit } from 'lucide-react';
+import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -65,8 +65,8 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 250;
-        const MAX_HEIGHT = 250;
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
         let width = img.width;
         let height = img.height;
 
@@ -85,8 +85,8 @@ const compressImage = (file: File): Promise<string> => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        // Returns base64 string
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        // Returns base64 string (increased quality for the cards)
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.onerror = (error) => reject(error);
     };
@@ -101,13 +101,26 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'cadastro' | 'galeria'>('galeria');
   const [editingId, setEditingId] = useState<string | null>(null);
+  
   const [form, setForm] = useState({
     teamName: '',
     coach: '',
     player: '',
+    nickname: '',
+    phone: '',
+    birthDate: '',
+    city: '',
+    position: '',
+    height: '',
+    weight: '',
     photo: null as File | null,
     existingPhotoUrl: ''
   });
+
+  // Filtros
+  const [filterCity, setFilterCity] = useState('');
+  const [filterTeam, setFilterTeam] = useState('');
+  const [filterPosition, setFilterPosition] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -189,9 +202,16 @@ export default function App() {
 
   const handleEdit = (team: any) => {
     setForm({
-      teamName: team.teamName,
-      coach: team.coach,
-      player: team.playerName,
+      teamName: team.teamName || '',
+      coach: team.coach || '',
+      player: team.playerName || '',
+      nickname: team.nickname || '',
+      phone: team.phone || '',
+      birthDate: team.birthDate || '',
+      city: team.city || '',
+      position: team.position || '',
+      height: team.height || '',
+      weight: team.weight || '',
       photo: null,
       existingPhotoUrl: team.playerPhoto || ''
     });
@@ -227,13 +247,20 @@ export default function App() {
             teamName: form.teamName,
             coach: form.coach,
             playerName: form.player,
+            nickname: form.nickname,
+            phone: form.phone,
+            birthDate: form.birthDate,
+            city: form.city,
+            position: form.position,
+            height: form.height,
+            weight: form.weight,
             playerPhoto: photoUrl,
             updatedAt: serverTimestamp()
           });
         } catch (error) {
           handleFirestoreError(error, OperationType.UPDATE, pathForUpdate);
         }
-        alert('Cadastro Atualizado!');
+        alert('Ficha Atualizada!');
       } else {
         const pathForWrite = 'teams';
         const teamId = generateId();
@@ -243,6 +270,13 @@ export default function App() {
             teamName: form.teamName,
             coach: form.coach,
             playerName: form.player,
+            nickname: form.nickname,
+            phone: form.phone,
+            birthDate: form.birthDate,
+            city: form.city,
+            position: form.position,
+            height: form.height,
+            weight: form.weight,
             playerPhoto: photoUrl,
             isVerified: false,
             createdAt: serverTimestamp(),
@@ -251,10 +285,12 @@ export default function App() {
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, pathForWrite);
         }
-        alert('Cadastro Realizado!');
+        alert('Ficha Registrada com Sucesso! Aguardando aprovação.');
       }
 
-      setForm({ teamName: '', coach: '', player: '', photo: null, existingPhotoUrl: '' });
+      setForm({
+        teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', city: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' 
+      });
       setEditingId(null);
       setCurrentView('galeria');
     } catch (err: any) {
@@ -266,27 +302,37 @@ export default function App() {
     }
   };
 
+  const filteredTeams = useMemo(() => {
+    return teams.filter(t => {
+      const matchCity = filterCity ? t.city?.toLowerCase().includes(filterCity.toLowerCase()) : true;
+      const matchTeam = filterTeam ? t.teamName?.toLowerCase().includes(filterTeam.toLowerCase()) : true;
+      const matchPosition = filterPosition ? t.position?.toLowerCase() === filterPosition.toLowerCase() : true;
+      return matchCity && matchTeam && matchPosition;
+    });
+  }, [teams, filterCity, filterTeam, filterPosition]);
+
   return (
     <div className="min-h-screen bg-stone-100 font-sans text-stone-900 pb-12">
-      <nav className="bg-sky-700 p-4 text-white shadow-md relative z-10">
+      {/* Header Style (Beach & Ocean Vibes) */}
+      <nav className="bg-sky-800 p-4 text-white shadow-md relative z-10">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
             <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-wide">
-              <Trophy className="text-amber-400" /> Beach Soccer
+              <Trophy className="text-orange-400" /> Beach Soccer
             </h1>
             {user && (
-              <div className="hidden md:flex bg-sky-800/50 p-1 rounded-xl">
+              <div className="hidden md:flex bg-sky-900/40 p-1 rounded-xl">
                  <button 
                    onClick={() => setCurrentView('galeria')}
-                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'galeria' ? 'bg-sky-600 shadow-sm' : 'hover:bg-sky-600/50 text-sky-200'}`}
+                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'galeria' ? 'bg-orange-500 shadow-sm' : 'hover:bg-sky-700/50 text-sky-100'}`}
                  >
                    <Users size={18} /> Elencos
                  </button>
                  <button 
                    onClick={() => setCurrentView('cadastro')}
-                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'cadastro' ? 'bg-sky-600 shadow-sm' : 'hover:bg-sky-600/50 text-sky-200'}`}
+                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'cadastro' ? 'bg-orange-500 shadow-sm' : 'hover:bg-sky-700/50 text-sky-100'}`}
                  >
-                   <PlusCircle size={18} /> Novo Cadastro
+                   <PlusCircle size={18} /> Nova Ficha
                  </button>
               </div>
             )}
@@ -299,7 +345,7 @@ export default function App() {
               </div>
               <button
                 onClick={handleLogout}
-                className="bg-sky-900 hover:bg-stone-900 px-3 py-2 rounded-lg flex items-center gap-2 transition-all shadow-sm"
+                className="bg-sky-950 hover:bg-stone-900 px-3 py-2 rounded-lg flex items-center gap-2 transition-all shadow-sm"
               >
                 <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
               </button>
@@ -307,7 +353,7 @@ export default function App() {
           ) : (
             <button
               onClick={handleLogin}
-              className="bg-amber-500 text-stone-900 px-5 py-2.5 rounded-lg font-bold hover:bg-amber-400 transition-colors shadow-md"
+              className="bg-orange-500 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-orange-400 transition-colors shadow-md"
             >
               Entrar
             </button>
@@ -317,33 +363,33 @@ export default function App() {
 
       {/* Navegação Mobile */}
       {user && (
-        <div className="md:hidden flex bg-sky-800 p-2 shadow-inner">
+        <div className="md:hidden flex bg-sky-900 p-2 shadow-inner gap-2">
            <button 
              onClick={() => setCurrentView('galeria')}
-             className={`flex-1 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'galeria' ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-200'}`}
+             className={`flex-1 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'galeria' ? 'bg-orange-500 text-white shadow-sm' : 'bg-sky-800 text-sky-200 hover:bg-sky-700'}`}
            >
              <Users size={16} /> Elencos
            </button>
            <button 
              onClick={() => setCurrentView('cadastro')}
-             className={`flex-1 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'cadastro' ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-200'}`}
+             className={`flex-1 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'cadastro' ? 'bg-orange-500 text-white shadow-sm' : 'bg-sky-800 text-sky-200 hover:bg-sky-700'}`}
            >
-             <PlusCircle size={16} /> Novo Cadastro
+             <PlusCircle size={16} /> Nova Ficha
            </button>
         </div>
       )}
 
       <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4">
         {!user ? (
-          <div className="text-center py-20 px-4 bg-white rounded-3xl shadow-sm border border-stone-200">
-            <Trophy size={64} className="mx-auto text-amber-500 mb-6" />
+          <div className="text-center py-20 px-4 bg-white rounded-3xl shadow-sm border border-stone-200 mt-10">
+            <Trophy size={72} className="mx-auto text-orange-400 mb-6" />
             <h2 className="text-3xl md:text-5xl font-black text-sky-900 mb-6 uppercase tracking-tight">O Maior Campeonato de Areia</h2>
             <p className="text-lg text-stone-600 mb-8 max-w-2xl mx-auto">
-              Faça login para escalar o seu elenco, registrar seus craques e acompanhar a galeria dos melhores jogadores das praias!
+              Faça login para gerenciar seu clube, registrar atletas e acompanhar a galeria das feras do beach soccer!
             </p>
             <button
               onClick={handleLogin}
-              className="bg-amber-500 text-stone-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-amber-400 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
+              className="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-lg hover:bg-orange-400 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block mx-auto"
             >
               Começar Agora
             </button>
@@ -351,59 +397,139 @@ export default function App() {
         ) : (
           <div>
             {currentView === 'cadastro' && (
-              <div className="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="bg-sky-100 p-3 rounded-2xl text-sky-600">
-                    <PlusCircle size={24} />
+              <div className="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-[32px] shadow-sm border border-sky-100">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="bg-orange-100 p-4 rounded-2xl text-orange-600">
+                    <PlusCircle size={32} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-sky-900 leading-tight">{editingId ? 'Editar Cadastro' : 'Novo Cadastro'}</h2>
-                    <p className="text-stone-500 text-sm">Insira os dados do time e do jogador principal</p>
+                    <h2 className="text-3xl font-black text-sky-900 leading-tight tracking-tight">{editingId ? 'Editar Ficha' : 'Ficha de Inscrição'}</h2>
+                    <p className="text-stone-500 font-medium">Preencha os dados do atleta para avaliação</p>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-bold text-stone-600 mb-1.5 ml-1">Nome do Time</label>
-                      <input
-                        className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none transition-all font-medium"
-                        placeholder="Ex: Caiçara FC"
-                        value={form.teamName}
-                        onChange={(e) => setForm({ ...form, teamName: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-stone-600 mb-1.5 ml-1">Treinador</label>
-                      <input
-                        className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none transition-all font-medium"
-                        placeholder="Ex: Prof. João"
-                        value={form.coach}
-                        onChange={(e) => setForm({ ...form, coach: e.target.value })}
-                        required
-                      />
+                <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+                  {/* Informações do Clube */}
+                  <div>
+                    <h3 className="font-bold text-sky-800 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm border-b border-sky-100 pb-2">Informações do Clube</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Clube / Time</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 focus:bg-white outline-none transition-all font-medium"
+                          placeholder="Ex: Caiçara FC"
+                          value={form.teamName}
+                          onChange={(e) => setForm({ ...form, teamName: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Nome do Treinador</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 focus:bg-white outline-none transition-all font-medium"
+                          placeholder="Ex: Prof. João"
+                          value={form.coach}
+                          onChange={(e) => setForm({ ...form, coach: e.target.value })}
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="bg-stone-50 p-5 rounded-2xl border border-stone-200">
-                    <h3 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Trophy size={16} className="text-amber-500"/> Jogador Destaque</h3>
-                    <div>
-                      <label className="block text-sm font-bold text-stone-600 mb-1.5 ml-1">Nome do Jogador</label>
-                      <input
-                        className="w-full bg-white border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all font-medium mb-4"
-                        placeholder="Ex: Carlos Silva"
-                        value={form.player}
-                        onChange={(e) => setForm({ ...form, player: e.target.value })}
-                        required
-                      />
+                  {/* Dados do Atleta */}
+                  <div>
+                    <h3 className="font-bold text-orange-600 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm border-b border-orange-100 pb-2">Dados do Atleta</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Nome Completo</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="Ex: Carlos Oliveira Silva"
+                          value={form.player}
+                          onChange={(e) => setForm({ ...form, player: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Apelido</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="Ex: Carlinhos"
+                          value={form.nickname}
+                          onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Telefone</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="(DDD) 99999-9999"
+                          value={form.phone}
+                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Data de Nascimento</label>
+                        <input
+                          type="date"
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium text-stone-700"
+                          value={form.birthDate}
+                          onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Cidade</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="Ex: Rio de Janeiro"
+                          value={form.city}
+                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        />
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Posição</label>
+                        <select
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium text-stone-700"
+                          value={form.position}
+                          onChange={(e) => setForm({ ...form, position: e.target.value })}
+                        >
+                          <option value="">Selecione...</option>
+                          <option value="Goleiro">Goleiro</option>
+                          <option value="Fixo">Fixo</option>
+                          <option value="Ala">Ala</option>
+                          <option value="Pivô">Pivô</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Altura</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="Ex: 1.83"
+                          value={form.height}
+                          onChange={(e) => setForm({ ...form, height: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Peso (kg)</label>
+                        <input
+                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                          placeholder="Ex: 78"
+                          value={form.weight}
+                          onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Foto */}
                     <div>
-                      <label className="block text-sm font-bold text-stone-600 mb-1.5 ml-1">Foto do Jogador</label>
-                      <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-stone-300 p-6 rounded-xl cursor-pointer hover:bg-sky-50 hover:border-sky-300 transition-colors text-stone-500 group">
-                        <Camera size={28} className="text-stone-400 group-hover:text-sky-500 transition-colors" />
-                        <span className="text-sm font-bold text-center">
-                          {form.photo ? form.photo.name : 'Clique para selecionar uma imagem (até 2MB)'}
+                      <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Foto de Rosto (Ficha)</label>
+                      <label className="flex flex-col items-center justify-center gap-3 bg-stone-50 border-2 border-dashed border-stone-300 p-8 rounded-2xl cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-colors text-stone-500 group">
+                        <Camera size={36} className="text-stone-400 group-hover:text-orange-500 transition-colors" />
+                        <span className="text-sm font-bold text-center px-4">
+                          {form.photo ? form.photo.name : (form.existingPhotoUrl ? 'Substituir foto atual?' : 'Clique para enviar foto. Prefira imagens claras do rosto.')}
                         </span>
                         <input
                           type="file"
@@ -420,116 +546,181 @@ export default function App() {
                       <b>Erro:</b> {errorMsg}
                     </div>
                   )}
-                  <button
-                    className="mt-2 w-full bg-sky-600 text-white p-4 rounded-xl font-black text-lg uppercase tracking-wide hover:bg-sky-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                    disabled={loading}
-                  >
-                    {loading ? 'Adicionando Jogador...' : (editingId ? 'Salvar Alterações' : 'Criar Jogador')}
-                  </button>
-                  {editingId && (
+
+                  <div className="border-t border-stone-100 pt-6 mt-4">
                     <button
-                      type="button"
-                      onClick={() => { setEditingId(null); setForm({ teamName: '', coach: '', player: '', photo: null, existingPhotoUrl: ''}); setCurrentView('galeria'); }}
-                      className="mt-1 w-full text-stone-500 p-2 font-bold uppercase text-sm hover:text-stone-700 transition-colors"
+                      className="w-full bg-sky-800 text-white p-4 rounded-xl font-black text-lg uppercase tracking-wide hover:bg-sky-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
                       disabled={loading}
                     >
-                      Cancelar Edição
+                      {loading ? 'Processando Ficha...' : (editingId ? 'Atualizar Ficha' : 'Enviar Inscrição')}
                     </button>
-                  )}
+                    {editingId && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(null); setForm({ teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', city: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: ''}); setCurrentView('galeria'); }}
+                        className="mt-3 w-full text-stone-500 p-2 font-bold uppercase text-sm hover:text-stone-800 transition-colors"
+                        disabled={loading}
+                      >
+                        Cancelar Edição
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             )}
 
             {currentView === 'galeria' && (
               <div>
-                 <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                     <div>
-                      <h2 className="text-3xl font-black text-sky-900 leading-tight uppercase">Galeria de Atletas</h2>
-                      <p className="text-stone-500 font-medium">Jogadores verificados e ativos no campeonato</p>
+                      <h2 className="text-3xl lg:text-4xl font-black text-sky-900 leading-tight uppercase tracking-tight">Galeria de Atletas</h2>
+                      <p className="text-stone-500 font-medium mt-1">Conheça as estrelas dos clubes do torneio</p>
                     </div>
-                    
                     {user.email === 'allan.muniz88@gmail.com' && (
-                      <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm">
-                        <ShieldCheck size={18} /> Modo Administrador
+                      <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 text-sm max-w-fit shadow-sm">
+                        <ShieldCheck size={18} /> Admin
                       </div>
                     )}
                  </div>
 
-                {teams.length === 0 ? (
-                  <div className="bg-white text-center p-12 rounded-3xl border border-stone-200 shadow-sm">
-                    <Trophy size={48} className="mx-auto text-stone-300 mb-4" />
-                    <p className="text-stone-500 font-bold text-lg">Nenhum jogador na galeria ainda.</p>
+                 {/* Filtros em Barras Modernas */}
+                 <div className="bg-white p-5 rounded-[24px] flex flex-wrap lg:flex-nowrap gap-4 mb-8 shadow-sm border border-stone-200">
+                   <div className="flex-1 min-w-[200px]">
+                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Clube</label>
+                     <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                       <Search size={18} className="text-stone-400" />
+                       <input 
+                         className="bg-transparent outline-none w-full text-sm font-medium" 
+                         placeholder="Buscar por clube..." 
+                         value={filterTeam}
+                         onChange={e => setFilterTeam(e.target.value)}
+                       />
+                     </div>
+                   </div>
+                   <div className="flex-1 min-w-[200px]">
+                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Cidade</label>
+                     <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                       <MapPin size={18} className="text-stone-400" />
+                       <input 
+                         className="bg-transparent outline-none w-full text-sm font-medium" 
+                         placeholder="Filtrar local..." 
+                         value={filterCity}
+                         onChange={e => setFilterCity(e.target.value)}
+                       />
+                     </div>
+                   </div>
+                   <div className="flex-1 min-w-[150px]">
+                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Posição</label>
+                     <select
+                       className="w-full bg-stone-50 border border-stone-200 p-3 text-sm rounded-xl focus:border-sky-500 focus:bg-white outline-none transition-all font-medium text-stone-700 mt-1"
+                       value={filterPosition}
+                       onChange={(e) => setFilterPosition(e.target.value)}
+                     >
+                       <option value="">Todas</option>
+                       <option value="Goleiro">Goleiro</option>
+                       <option value="Fixo">Fixo</option>
+                       <option value="Ala">Ala</option>
+                       <option value="Pivô">Pivô</option>
+                     </select>
+                   </div>
+                 </div>
+
+                {filteredTeams.length === 0 ? (
+                  <div className="bg-white text-center p-16 rounded-[32px] border border-stone-200 shadow-sm">
+                    <Users size={64} className="mx-auto text-stone-200 mb-4" />
+                    <p className="text-stone-500 font-bold text-xl">Nenhum atleta encontrado.</p>
+                    <p className="text-stone-400 mt-2">Ajuste os filtros ou crie uma nova ficha.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {teams.map((t) => (
+                    {filteredTeams.map((t) => (
                       <div
                         key={t.id}
-                        className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-stone-200 flex flex-col relative"
+                        className="bg-white rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200 flex flex-col relative group"
                       >
                         {!t.isVerified && (
-                          <div className="absolute top-3 left-3 bg-stone-900/80 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg z-10 backdrop-blur-sm border border-stone-700">
-                             EM ANÁLISE
+                          <div className="absolute top-3 left-3 bg-stone-900/90 text-orange-400 text-[10px] uppercase font-black tracking-wider px-3 py-1.5 rounded-lg z-20 backdrop-blur-md border border-stone-700 shadow-lg">
+                             Pendente
                           </div>
                         )}
                         
-                        <div className="aspect-square bg-stone-100 flex items-center justify-center overflow-hidden relative">
-                           {t.playerPhoto ? (
-                             <img
-                               src={t.playerPhoto}
-                               alt={t.playerName}
-                               className={`w-full h-full object-cover transition-transform duration-500 hover:scale-105 ${!t.isVerified ? 'grayscale opacity-70' : ''}`}
-                             />
-                           ) : (
-                             <div className="text-stone-300 flex flex-col items-center">
-                               <Camera size={48} />
-                               <span className="font-bold text-sm mt-2">Sem Foto</span>
-                             </div>
-                           )}
-                           <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-stone-900/80 to-transparent p-4 pt-12">
-                             <h3 className="text-white font-black text-xl truncate">{t.playerName}</h3>
+                        {/* Header: Club Info */}
+                        <div className="bg-gradient-to-r from-sky-900 to-sky-800 text-white p-5 pb-10 relative flex justify-between items-start">
+                           <div>
+                             <p className="text-[10px] uppercase tracking-widest text-orange-400 font-bold mb-1">Clube Atual</p>
+                             <h3 className="font-black text-lg leading-tight truncate max-w-[180px]" title={t.teamName}>{t.teamName}</h3>
                            </div>
+                           {t.isVerified && <CheckCircle size={22} className="text-orange-400 drop-shadow-md" />}
                         </div>
 
-                        <div className="p-5 flex-1 flex flex-col">
-                          <div className="mb-4">
-                            <p className="text-xs font-bold uppercase text-stone-400 mb-1">Equipe</p>
-                            <p className="font-bold text-stone-800 flex items-center justify-between">
-                              {t.teamName}
-                              {t.isVerified && <CheckCircle size={16} className="text-emerald-500" />}
-                            </p>
-                          </div>
-                          <div className="mb-4">
-                            <p className="text-xs font-bold uppercase text-stone-400 mb-1">Treinador(a)</p>
-                            <p className="font-medium text-stone-700 text-sm">{t.coach}</p>
-                          </div>
-                          
-                          {/* Área do Admin / Dono para gerenciar */}
-                          <div className="border-t border-stone-100 pt-4 mt-auto space-y-2">
-                            {!t.isVerified && (user.email === 'allan.muniz88@gmail.com') && (
-                               <button 
-                                 onClick={() => handleApprove(t.id)}
-                                 className="w-full bg-stone-900 text-amber-400 font-bold py-2.5 rounded-xl hover:bg-stone-800 transition-colors text-sm flex items-center justify-center gap-2"
-                               >
-                                 <ShieldCheck size={16} /> Aprovar Jogador
-                               </button>
-                            )}
-                            
-                            {!t.isVerified && t.ownerId === user.uid && user.email !== 'allan.muniz88@gmail.com' && (
-                               <p className="text-center text-xs font-bold text-amber-600 bg-amber-50 p-2 rounded-lg">
-                                  Aguardando aprovação da moderação
-                               </p>
-                            )}
+                        {/* Player Image & Name Overlapping */}
+                        <div className="px-5 relative -mt-10 flex flex-col items-center">
+                           <div className="w-24 h-24 rounded-full border-4 border-white bg-stone-100 overflow-hidden shadow-md z-10 flex items-center justify-center relative">
+                              {t.playerPhoto ? (
+                                 <img src={t.playerPhoto} className={`w-full h-full object-cover ${!t.isVerified ? 'grayscale' : ''}`} alt={t.playerName} />
+                              ) : (
+                                 <Camera size={32} className="text-stone-300" />
+                              )}
+                           </div>
+                           <h2 className="font-black text-[22px] text-sky-950 mt-3 text-center leading-tight truncate w-full">{t.playerName}</h2>
+                           {t.nickname ? (
+                             <p className="text-sm text-orange-600 font-bold mt-0.5 mb-2">"{t.nickname}"</p>
+                           ) : (
+                             <div className="h-6"></div>
+                           )}
+                        </div>
 
-                            {t.ownerId === user.uid && (
-                              <button
-                                onClick={() => handleEdit(t)}
-                                className="w-full bg-sky-50 text-sky-700 font-bold py-2 rounded-xl border border-sky-200 hover:bg-sky-100 transition-colors text-xs flex items-center justify-center gap-2"
-                              >
-                                <Edit size={14} /> Editar Atleta
-                              </button>
-                            )}
-                          </div>
+                        {/* Info Grid */}
+                        <div className="px-5 pb-5 flex-1 flex flex-col">
+                           <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mt-2 mb-4 bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                              <div>
+                                 <p className="text-[10px] uppercase font-bold text-stone-400">Posição</p>
+                                 <p className="font-bold text-stone-800">{t.position || '-'}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[10px] uppercase font-bold text-stone-400">Cidade</p>
+                                 <p className="font-bold text-stone-800 flex items-center gap-1"><MapPin size={12} className="text-sky-500 opacity-70"/> <span className="truncate max-w-[80px]" title={t.city}>{t.city || '-'}</span></p>
+                              </div>
+                              <div>
+                                 <p className="text-[10px] uppercase font-bold text-stone-400">Altura/Peso</p>
+                                 <p className="font-bold text-stone-800">{t.height ? `${t.height}m` : '-'} / {t.weight ? `${t.weight}kg` : '-'}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[10px] uppercase font-bold text-stone-400">Nascimento</p>
+                                 {t.birthDate ? (
+                                    <p className="font-bold text-stone-800 flex items-center gap-1"><Calendar size={12} className="text-orange-500 opacity-70"/> {new Date(t.birthDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                 ) : (
+                                    <p className="font-bold text-stone-800">-</p>
+                                 )}
+                              </div>
+                           </div>
+                           
+                           {/* Área do Admin / Dono para gerenciar */}
+                           <div className="mt-auto space-y-2 pt-2 border-t border-stone-100">
+                             {!t.isVerified && (user.email === 'allan.muniz88@gmail.com') && (
+                                <button 
+                                  onClick={() => handleApprove(t.id)}
+                                  className="w-full bg-stone-900 text-orange-400 font-bold py-2.5 rounded-xl hover:bg-stone-800 transition-colors text-sm flex items-center justify-center gap-2"
+                                >
+                                  <ShieldCheck size={16} /> Aprovar Ficha
+                                </button>
+                             )}
+                             
+                             {!t.isVerified && t.ownerId === user.uid && user.email !== 'allan.muniz88@gmail.com' && (
+                                <p className="text-center text-xs font-bold text-orange-600 bg-orange-50 p-2.5 rounded-xl border border-orange-100">
+                                   Em validação pela mesa
+                                </p>
+                             )}
+
+                             {t.ownerId === user.uid && (
+                               <button
+                                 onClick={() => handleEdit(t)}
+                                 className="w-full bg-white text-sky-700 font-bold py-2.5 rounded-xl border-2 border-sky-100 hover:bg-sky-50 hover:border-sky-200 transition-colors text-xs flex items-center justify-center gap-2"
+                               >
+                                 <Edit size={14} /> Editar Ficha
+                               </button>
+                             )}
+                           </div>
                         </div>
                       </div>
                     ))}
@@ -543,4 +734,3 @@ export default function App() {
     </div>
   );
 }
-
