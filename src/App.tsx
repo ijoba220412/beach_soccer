@@ -438,14 +438,31 @@ export default function App() {
         <div className="max-w-6xl mx-auto flex justify-between items-center relative z-10">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-              <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-10 drop-shadow-md" />
+              <div className="relative flex flex-col items-center">
+                {/* 7 Stars */}
+                <div className="flex items-end justify-center mb-0.5" style={{ width: '56px', height: '16px' }}>
+                  <svg viewBox="0 0 180 50" className="w-full h-full overflow-visible">
+                    <path id="curve" d="M 0 50 Q 90 -10 180 50" fill="transparent" />
+                    <text fill="#22c55e" fontSize="24" fontWeight="bold" letterSpacing="2">
+                      <textPath href="#curve" startOffset="50%" textAnchor="middle">
+                        ★★★★★★★
+                      </textPath>
+                    </text>
+                  </svg>
+                </div>
+                <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-10 drop-shadow-md relative z-10" />
+              </div>
               <div className="flex flex-col">
-                <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-tight leading-none">
+                <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-tight leading-none" style={{ letterSpacing: '0.02em' }}>
                   Beach Soccer
                 </h1>
-                <div className="flex justify-between w-full mt-0.5 px-0.5">
-                  <p className="text-yellow-400 font-bold text-[8.5px] uppercase tracking-[0.22em] leading-none">
-                    coaching Rafael cobra
+                <div className="flex justify-between w-full mt-0.5" style={{ fontSize: '7.5px' }}>
+                  <p className="text-yellow-400 font-bold uppercase w-full flex justify-between leading-none" style={{ letterSpacing: '0.15em' }}>
+                    <span>c</span><span>o</span><span>a</span><span>c</span><span>h</span>
+                    <span>&nbsp;</span>
+                    <span>R</span><span>a</span><span>f</span><span>a</span><span>e</span><span>l</span>
+                    <span>&nbsp;</span>
+                    <span>c</span><span>o</span><span>b</span><span>r</span><span>a</span>
                   </p>
                 </div>
               </div>
@@ -531,9 +548,22 @@ export default function App() {
               <img src="https://images.unsplash.com/photo-1587329310686-91414b8e3cb7?w=1600&q=80" className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" alt="Soccer ball on beach" />
               <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/60 to-transparent"></div>
             </div>
-            <div className="relative z-10">
-              <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-24 mx-auto mb-6 drop-shadow-lg" />
-              <h2 className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tight drop-shadow-md">O Maior Campeonato de Areia</h2>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="relative flex flex-col items-center mb-6">
+                {/* 7 Stars */}
+                <div className="flex items-end justify-center mb-1" style={{ width: '130px', height: '36px' }}>
+                  <svg viewBox="0 0 180 50" className="w-full h-full overflow-visible">
+                    <path id="curve-hero" d="M 0 50 Q 90 -10 180 50" fill="transparent" />
+                    <text fill="#22c55e" fontSize="24" fontWeight="bold" letterSpacing="2">
+                      <textPath href="#curve-hero" startOffset="50%" textAnchor="middle">
+                        ★★★★★★★
+                      </textPath>
+                    </text>
+                  </svg>
+                </div>
+                <img src="https://logodownload.org/wp-content/uploads/2017/11/cbf-logo-selecao-logo-brasil-2.png" alt="CBF" className="h-24 drop-shadow-lg relative z-10" />
+              </div>
+              <h2 className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tight drop-shadow-md text-center">O Maior Campeonato de Areia</h2>
               <p className="text-xl text-stone-200 mb-8 max-w-2xl mx-auto font-medium drop-shadow">
                 Faça login para gerenciar seu clube, registrar atletas e acompanhar a galeria das feras do beach soccer!
               </p>
