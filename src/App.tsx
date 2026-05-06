@@ -126,6 +126,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'cadastro' | 'galeria' | 'squad'>('galeria');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedSquadPlayers, setSelectedSquadPlayers] = useState<any[]>([]);
+  const [squadSearchTerm, setSquadSearchTerm] = useState('');
   
   const [form, setForm] = useState({
     teamName: '',
@@ -1085,14 +1086,26 @@ export default function App() {
                   {/* Left Column - Library */}
                   <div className="md:col-span-1 print:hidden bg-white p-4 rounded-2xl border border-stone-200 h-[600px] flex flex-col">
                     <h3 className="font-bold text-sm uppercase text-stone-500 mb-4 px-2">Atletas Disponíveis</h3>
+                    <div className="mb-3 px-2">
+                       <div className="relative">
+                          <Search size={16} className="absolute left-3 top-1/2 -mt-2 text-stone-400" />
+                          <input
+                            type="text"
+                            placeholder="Buscar atleta..."
+                            className="w-full bg-stone-50 border border-stone-200 p-2.5 pl-9 text-sm rounded-xl focus:border-emerald-500 focus:bg-white outline-none transition-all text-stone-700"
+                            value={squadSearchTerm}
+                            onChange={(e) => setSquadSearchTerm(e.target.value)}
+                          />
+                       </div>
+                    </div>
                     <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                      {filteredTeams.map(t => (
+                      {filteredTeams.filter(t => !squadSearchTerm || t.playerName?.toLowerCase().includes(squadSearchTerm.toLowerCase())).map(t => (
                         <div 
                           key={t.id} 
                           className="flex items-center justify-between p-3 bg-stone-50 hover:bg-stone-100 rounded-xl cursor-pointer border border-transparent hover:border-stone-200 transition-colors"
                           onClick={() => {
                             if (!selectedSquadPlayers.find(p => p.id === t.id)) {
-                              setSelectedSquadPlayers([...selectedSquadPlayers, t]);
+                              setSelectedSquadPlayers([...selectedSquadPlayers, { ...t, matchRole: t.position || 'Reserva' }]);
                             }
                           }}
                         >
@@ -1129,16 +1142,44 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {selectedSquadPlayers.map((player, idx) => (
-                          <div key={player.id} className="flex items-center gap-4 p-4 border border-stone-200 rounded-xl relative group print:border-b print:border-black print:rounded-none">
-                            <div className="font-black text-2xl text-stone-200 w-8 text-center print:text-black">{idx + 1}</div>
+                        {[...selectedSquadPlayers].sort((a,b) => {
+                          const order = ['Goleiro', 'Fixo', 'Ala DIREITA', 'Ala ESQUERDA', 'Ala', 'Pivô', 'Reserva', 'Treinador'];
+                          let ia = order.indexOf(a.matchRole || a.position);
+                          let ib = order.indexOf(b.matchRole || b.position);
+                          if(ia===-1)ia=99;  if(ib===-1)ib=99;
+                          return ia - ib;
+                        }).map((player, idx) => (
+                          <div key={player.id} className="flex items-center gap-4 p-4 border border-stone-200 rounded-xl relative group print:border-b print:border-stone-800 print:rounded-none">
+                            <div className="font-black text-2xl text-stone-200 w-8 text-center print:text-stone-800">{idx + 1}</div>
                             <div className="w-12 h-12 rounded-full border border-stone-300 bg-stone-100 overflow-hidden flex-shrink-0 flex items-center justify-center print:w-16 print:h-16">
                               {player.playerPhoto ? <img src={player.playerPhoto} className="w-full h-full object-cover" /> : <Camera size={20} className="text-stone-400" />}
                             </div>
                             <div className="flex-1">
                                <p className="font-black text-lg text-stone-800 leading-none">{player.playerName}</p>
-                               <span className="text-xs uppercase font-bold text-stone-500 mr-3">{player.position || '-'}</span>
-                               {player.nickname && <span className="text-xs text-orange-500 font-bold">"{player.nickname}"</span>}
+                               {player.nickname && <span className="text-xs text-orange-500 font-bold mr-3">"{player.nickname}"</span>}
+                               
+                               <div className="mt-2 flex items-center gap-2 print:hidden">
+                                  <select
+                                    className="text-xs bg-stone-100 border border-stone-200 rounded-lg p-1 font-bold text-stone-600 outline-none focus:ring-1 focus:ring-emerald-500"
+                                    value={player.matchRole || player.position || ''}
+                                    onChange={(e) => {
+                                      setSelectedSquadPlayers(selectedSquadPlayers.map(p => p.id === player.id ? { ...p, matchRole: e.target.value } : p));
+                                    }}
+                                  >
+                                    <option value="Goleiro">Goleiro</option>
+                                    <option value="Fixo">Fixo</option>
+                                    <option value="Ala">Ala</option>
+                                    <option value="Ala DIREITA">Ala Direita</option>
+                                    <option value="Ala ESQUERDA">Ala Esquerda</option>
+                                    <option value="Pivô">Pivô</option>
+                                    <option value="Reserva">Reserva</option>
+                                    <option value="Treinador">Treinador</option>
+                                  </select>
+                               </div>
+                               
+                               <p className="text-sm uppercase font-bold text-emerald-800 hidden print:block mt-1">
+                                 {player.matchRole || player.position || '-'}
+                               </p>
                             </div>
                             <div className="text-right hidden sm:block print:block">
                                <p className="text-[10px] uppercase font-bold text-stone-400">Time / Clube</p>
@@ -1174,24 +1215,29 @@ export default function App() {
             </button>
             
             {/* Header Modal */}
-            <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 p-8 pb-32 relative text-white print:!bg-none print:!bg-transparent print:pb-8 print:border-b print:border-stone-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 print:text-stone-500 mb-2">FICHA DE ATLETA</p>
-                </div>
-                <button 
-                  onClick={() => window.print()} 
-                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors print:hidden flex items-center gap-2 font-bold text-sm"
-                  title="Imprimir Ficha"
-                >
-                  <Printer size={18} /> Imprimir / PDF
-                </button>
+            <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 p-6 md:p-8 relative text-white flex justify-between items-start print:hidden rounded-t-[32px]">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-1">FICHA DE ATLETA</p>
+                <p className="opacity-80 text-sm">{selectedPlayer.teamName}</p>
               </div>
+              <button 
+                onClick={() => window.print()} 
+                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors flex items-center gap-2 font-bold text-sm"
+                title="Imprimir Ficha"
+              >
+                <Printer size={18} /> Imprimir / PDF
+              </button>
             </div>
 
-            <div className="px-8 pb-8 relative -mt-24 print:mt-8 print:px-8">
-              <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative print:static">
-                  <div className="w-40 h-40 rounded-full border-4 border-white print:border-stone-200 bg-stone-100 overflow-hidden shadow-xl z-10 flex items-center justify-center relative flex-shrink-0">
+            {/* Print Only Header */}
+            <div className="hidden print:block text-center border-b border-stone-200 pb-4 mb-6">
+               <p className="text-sm uppercase font-bold tracking-widest text-stone-500 mb-1">FICHA DE ATLETA Oficial</p>
+               <h2 className="text-xl font-black text-stone-900">{selectedPlayer.teamName}</h2>
+            </div>
+
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-center sm:items-center bg-stone-50 print:bg-transparent p-6 rounded-3xl border border-stone-100 print:border-none print:p-0">
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white print:border-stone-200 bg-stone-200 overflow-hidden shadow-md shrink-0 flex items-center justify-center relative">
                       {selectedPlayer.playerPhoto ? (
                         <img src={selectedPlayer.playerPhoto} className={`w-full h-full object-cover ${!selectedPlayer.isVerified ? 'grayscale' : ''}`} alt={selectedPlayer.playerName} />
                       ) : (
@@ -1199,25 +1245,26 @@ export default function App() {
                       )}
                   </div>
 
-                  <div className="z-10 mt-2 md:mt-4 text-center md:text-left">
-                     <h3 className="text-3xl md:text-4xl font-black text-white print:text-stone-900 flex flex-wrap items-center justify-center md:justify-start gap-2 drop-shadow-sm print:drop-shadow-none">
+                  <div className="text-center sm:text-left flex-1 space-y-2">
+                     <h3 className="text-3xl md:text-4xl font-black text-emerald-950 print:text-stone-900 flex flex-wrap items-center justify-center sm:justify-start gap-2 leading-tight">
                         {selectedPlayer.playerName}
-                        {getBirthdayStatus(selectedPlayer.birthDate) === 'today' && <PartyPopper size={24} className="text-rose-400 animate-bounce flex-shrink-0 print:hidden" title="Aniversário Hoje!" />}
-                        {getBirthdayStatus(selectedPlayer.birthDate) === 'upcoming' && <PartyPopper size={24} className="text-amber-400 flex-shrink-0 print:hidden" title="Aniversário chegando!" />}
+                        {getBirthdayStatus(selectedPlayer.birthDate) === 'today' && <PartyPopper size={24} className="text-rose-500 animate-bounce shrink-0 print:hidden" title="Aniversário Hoje!" />}
+                        {getBirthdayStatus(selectedPlayer.birthDate) === 'upcoming' && <PartyPopper size={24} className="text-amber-500 shrink-0 print:hidden" title="Aniversário chegando!" />}
                      </h3>
-                     {selectedPlayer.nickname && <p className="text-orange-400 print:text-orange-600 font-bold text-xl mt-1 drop-shadow-sm print:drop-shadow-none">"{selectedPlayer.nickname}"</p>}
+                     
+                     {selectedPlayer.nickname && <p className="text-orange-500 font-bold text-xl leading-tight">"{selectedPlayer.nickname}"</p>}
                      
                      {selectedPlayer.birthDate && (
-                         <div className="flex bg-stone-900/60 print:bg-stone-100 backdrop-blur-sm print:backdrop-blur-none px-4 py-2 rounded-xl border border-white/10 print:border-stone-200 mt-4 inline-flex items-center gap-2 mx-auto md:mx-0">
-                           <Calendar size={16} className="text-orange-400 print:text-stone-500" /> 
-                           <span className="text-stone-200 print:text-stone-600 font-medium text-sm">Nascimento:</span>
-                           <span className="font-bold text-white print:text-stone-900">{selectedPlayer.birthDate}</span>
+                         <div className="mt-3 inline-flex items-center gap-2 bg-white print:bg-stone-100 border border-stone-200 px-4 py-2 rounded-xl text-stone-600">
+                           <Calendar size={16} className="text-orange-500 print:text-stone-500" /> 
+                           <span className="font-medium text-sm">Nascimento:</span>
+                           <span className="font-black text-stone-800 print:text-stone-900">{selectedPlayer.birthDate}</span>
                          </div>
                      )}
                   </div>
               </div>
 
-              <div className="w-full bg-white rounded-2xl shadow-sm border border-stone-100 p-6 mt-8 print:border-none print:shadow-none print:p-0 print:mt-10">
+              <div className="w-full mt-6 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                           <div>
                               <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Equipe Atual</p>
