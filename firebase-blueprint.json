@@ -1,0 +1,26 @@
+{
+  "entities": {
+    "Team": {
+      "title": "Team",
+      "description": "A beach soccer team registration",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "coach": { "type": "string" },
+        "playerName": { "type": "string" },
+        "playerPhoto": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["ownerId", "teamName", "coach", "playerName", "isVerified", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Store all team registrations."
+    }
+  }
+}

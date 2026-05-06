@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(ownerId) {
+      return request.auth.uid == ownerId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTeam(data) {
+      return data.keys().hasAll(['ownerId', 'teamName', 'coach', 'playerName', 'isVerified', 'createdAt', 'updatedAt']) 
+        && data.keys().size() >= 7 && data.keys().size() <= 8
+        && data.ownerId == request.auth.uid
+        && data.teamName is string && data.teamName.size() > 0 && data.teamName.size() <= 100
+        && data.coach is string && data.coach.size() > 0 && data.coach.size() <= 100
+        && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
+        && data.isVerified is bool
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 2048));
+    }
+    
+    function isValidTeamUpdate(data) {
+      return data.keys().hasAll(['ownerId', 'teamName', 'coach', 'playerName', 'isVerified', 'createdAt', 'updatedAt']) 
+        && data.keys().size() >= 7 && data.keys().size() <= 8
+        && data.ownerId == existing().ownerId
+        && data.teamName is string && data.teamName.size() > 0 && data.teamName.size() <= 100
+        && data.coach is string && data.coach.size() > 0 && data.coach.size() <= 100
+        && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
+        && data.isVerified == existing().isVerified
+        && data.createdAt == existing().createdAt
+        && data.updatedAt == request.time
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 2048));
+    }
+
+    match /teams/{teamId} {
+      allow read: if isAuthenticated() && (existing().isVerified == true || existing().ownerId == request.auth.uid);
+      allow list: if isAuthenticated() && (resource.data.isVerified == true || resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(teamId) && isValidTeam(incoming()) && incoming().isVerified == false;
+      allow update: if isAuthenticated() && isValidId(teamId) && isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'playerPhoto', 'updatedAt'])
+      );
+      allow delete: if isAuthenticated() && isValidId(teamId) && isOwner(existing().ownerId);
+    }
+  }
+}

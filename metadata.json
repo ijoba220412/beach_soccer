@@ -1,0 +1,6 @@
+{
+  "name": "Beach Soccer Manager",
+  "description": "Sistema de cadastro e verificação de times de futebol de areia com upload de fotos de jogadores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
