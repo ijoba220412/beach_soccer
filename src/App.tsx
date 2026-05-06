@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity } from 'lucide-react';
+import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -109,7 +109,12 @@ export default function App() {
     nickname: '',
     phone: '',
     birthDate: '',
+    cep: '',
+    address: '',
+    addressNumber: '',
+    neighborhood: '',
     city: '',
+    state: '',
     position: '',
     height: '',
     weight: '',
@@ -121,6 +126,8 @@ export default function App() {
   const [filterCity, setFilterCity] = useState('');
   const [filterTeam, setFilterTeam] = useState('');
   const [filterPosition, setFilterPosition] = useState('');
+  // Visualização (Tabela ou Cards)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -208,7 +215,12 @@ export default function App() {
       nickname: team.nickname || '',
       phone: team.phone || '',
       birthDate: team.birthDate || '',
+      cep: team.cep || '',
+      address: team.address || '',
+      addressNumber: team.addressNumber || '',
+      neighborhood: team.neighborhood || '',
       city: team.city || '',
+      state: team.state || '',
       position: team.position || '',
       height: team.height || '',
       weight: team.weight || '',
@@ -217,6 +229,45 @@ export default function App() {
     });
     setEditingId(team.id);
     setCurrentView('cadastro');
+  };
+
+  const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 8) val = val.slice(0, 8);
+    if (val.length >= 5) {
+      val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+    } else if (val.length >= 3) {
+      val = `${val.slice(0, 2)}/${val.slice(2)}`;
+    }
+    setForm(prev => ({ ...prev, birthDate: val }));
+  };
+
+  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 8) val = val.slice(0, 8);
+    if (val.length > 5) {
+        val = `${val.slice(0, 5)}-${val.slice(5)}`;
+    }
+    setForm(prev => ({ ...prev, cep: val }));
+
+    const rawCep = val.replace(/\D/g, '');
+    if (rawCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${rawCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+           setForm(prev => ({ 
+             ...prev, 
+             address: data.logradouro || prev.address,
+             neighborhood: data.bairro || prev.neighborhood,
+             city: data.localidade || prev.city,
+             state: data.uf || prev.state
+           }));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar CEP", err);
+      }
+    }
   };
 
   const handleLogout = async () => {
@@ -250,7 +301,12 @@ export default function App() {
             nickname: form.nickname,
             phone: form.phone,
             birthDate: form.birthDate,
+            cep: form.cep,
+            address: form.address,
+            addressNumber: form.addressNumber,
+            neighborhood: form.neighborhood,
             city: form.city,
+            state: form.state,
             position: form.position,
             height: form.height,
             weight: form.weight,
@@ -273,7 +329,12 @@ export default function App() {
             nickname: form.nickname,
             phone: form.phone,
             birthDate: form.birthDate,
+            cep: form.cep,
+            address: form.address,
+            addressNumber: form.addressNumber,
+            neighborhood: form.neighborhood,
             city: form.city,
+            state: form.state,
             position: form.position,
             height: form.height,
             weight: form.weight,
@@ -289,7 +350,7 @@ export default function App() {
       }
 
       setForm({
-        teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', city: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' 
+        teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', cep: '', address: '', addressNumber: '', neighborhood: '', city: '', state: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' 
       });
       setEditingId(null);
       setCurrentView('galeria');
@@ -471,24 +532,78 @@ export default function App() {
                       <div>
                         <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Data de Nascimento</label>
                         <input
-                          type="date"
+                          type="text"
                           className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium text-stone-700"
+                          placeholder="DD/MM/AAAA"
                           value={form.birthDate}
-                          onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+                          onChange={handleBirthDateChange}
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Cidade</label>
-                        <input
-                          className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                          placeholder="Ex: Rio de Janeiro"
-                          value={form.city}
-                          onChange={(e) => setForm({ ...form, city: e.target.value })}
-                        />
+                      <div className="md:col-span-2 mt-4 pt-4 border-t border-stone-100">
+                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-3">Endereço Residencial</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                          <div>
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">CEP</label>
+                            <input
+                              type="text"
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                              placeholder="00000-000"
+                              value={form.cep}
+                              onChange={handleCepChange}
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Endereço (Rua/Av)</label>
+                            <input
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                              placeholder="Ex: Rua das Rosas"
+                              value={form.address}
+                              onChange={(e) => setForm({ ...form, address: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Número</label>
+                            <input
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                              placeholder="Ex: 123"
+                              value={form.addressNumber}
+                              onChange={(e) => setForm({ ...form, addressNumber: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Bairro</label>
+                            <input
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                              placeholder="Ex: Centro"
+                              value={form.neighborhood}
+                              onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Cidade</label>
+                            <input
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                              placeholder="Ex: Rio de Janeiro"
+                              value={form.city}
+                              onChange={(e) => setForm({ ...form, city: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Estado (UF)</label>
+                            <input
+                              className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium uppercase"
+                              placeholder="Ex: RJ"
+                              maxLength={2}
+                              value={form.state}
+                              onChange={(e) => setForm({ ...form, state: e.target.value })}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 mt-2">
+
                       <div>
                         <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Posição</label>
                         <select
@@ -584,44 +699,63 @@ export default function App() {
                  </div>
 
                  {/* Filtros em Barras Modernas */}
-                 <div className="bg-white p-5 rounded-[24px] flex flex-wrap lg:flex-nowrap gap-4 mb-8 shadow-sm border border-stone-200">
-                   <div className="flex-1 min-w-[200px]">
-                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Clube</label>
-                     <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
-                       <Search size={18} className="text-stone-400" />
-                       <input 
-                         className="bg-transparent outline-none w-full text-sm font-medium" 
-                         placeholder="Buscar por clube..." 
-                         value={filterTeam}
-                         onChange={e => setFilterTeam(e.target.value)}
-                       />
+                 <div className="bg-white p-5 rounded-[24px] flex flex-col md:flex-row gap-4 mb-8 shadow-sm border border-stone-200 justify-between items-center">
+                   <div className="flex flex-wrap lg:flex-nowrap gap-4 w-full">
+                     <div className="flex-1 min-w-[200px]">
+                       <label className="text-xs font-bold text-stone-500 uppercase ml-1">Clube</label>
+                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                         <Search size={18} className="text-stone-400" />
+                         <input 
+                           className="bg-transparent outline-none w-full text-sm font-medium" 
+                           placeholder="Buscar por clube..." 
+                           value={filterTeam}
+                           onChange={e => setFilterTeam(e.target.value)}
+                         />
+                       </div>
+                     </div>
+                     <div className="flex-1 min-w-[200px]">
+                       <label className="text-xs font-bold text-stone-500 uppercase ml-1">Cidade</label>
+                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                         <MapPin size={18} className="text-stone-400" />
+                         <input 
+                           className="bg-transparent outline-none w-full text-sm font-medium" 
+                           placeholder="Filtrar local..." 
+                           value={filterCity}
+                           onChange={e => setFilterCity(e.target.value)}
+                         />
+                       </div>
+                     </div>
+                     <div className="flex-1 min-w-[150px]">
+                       <label className="text-xs font-bold text-stone-500 uppercase ml-1">Posição</label>
+                       <select
+                         className="w-full bg-stone-50 border border-stone-200 p-3 text-sm rounded-xl focus:border-sky-500 focus:bg-white outline-none transition-all font-medium text-stone-700 mt-1"
+                         value={filterPosition}
+                         onChange={(e) => setFilterPosition(e.target.value)}
+                       >
+                         <option value="">Todas</option>
+                         <option value="Goleiro">Goleiro</option>
+                         <option value="Fixo">Fixo</option>
+                         <option value="Ala">Ala</option>
+                         <option value="Pivô">Pivô</option>
+                       </select>
                      </div>
                    </div>
-                   <div className="flex-1 min-w-[200px]">
-                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Cidade</label>
-                     <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
-                       <MapPin size={18} className="text-stone-400" />
-                       <input 
-                         className="bg-transparent outline-none w-full text-sm font-medium" 
-                         placeholder="Filtrar local..." 
-                         value={filterCity}
-                         onChange={e => setFilterCity(e.target.value)}
-                       />
-                     </div>
-                   </div>
-                   <div className="flex-1 min-w-[150px]">
-                     <label className="text-xs font-bold text-stone-500 uppercase ml-1">Posição</label>
-                     <select
-                       className="w-full bg-stone-50 border border-stone-200 p-3 text-sm rounded-xl focus:border-sky-500 focus:bg-white outline-none transition-all font-medium text-stone-700 mt-1"
-                       value={filterPosition}
-                       onChange={(e) => setFilterPosition(e.target.value)}
+
+                   <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-xl border border-stone-200 self-end md:self-auto w-full md:w-auto justify-center">
+                     <button 
+                       onClick={() => setViewMode('cards')}
+                       className={`p-2.5 rounded-lg transition-all flex items-center justify-center ${viewMode === 'cards' ? 'bg-white text-orange-500 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                       title="Ver em Cards"
                      >
-                       <option value="">Todas</option>
-                       <option value="Goleiro">Goleiro</option>
-                       <option value="Fixo">Fixo</option>
-                       <option value="Ala">Ala</option>
-                       <option value="Pivô">Pivô</option>
-                     </select>
+                       <LayoutGrid size={20} />
+                     </button>
+                     <button 
+                       onClick={() => setViewMode('table')}
+                       className={`p-2.5 rounded-lg transition-all flex items-center justify-center ${viewMode === 'table' ? 'bg-white text-orange-500 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                       title="Ver em Tabela"
+                     >
+                       <List size={20} />
+                     </button>
                    </div>
                  </div>
 
@@ -631,7 +765,7 @@ export default function App() {
                     <p className="text-stone-500 font-bold text-xl">Nenhum atleta encontrado.</p>
                     <p className="text-stone-400 mt-2">Ajuste os filtros ou crie uma nova ficha.</p>
                   </div>
-                ) : (
+                ) : viewMode === 'cards' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredTeams.map((t) => (
                       <div
@@ -724,6 +858,79 @@ export default function App() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-[24px] shadow-sm border border-stone-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase text-xs font-black tracking-wider">
+                            <th className="p-4">Atleta</th>
+                            <th className="p-4">Clube</th>
+                            <th className="p-4">Posição</th>
+                            <th className="p-4">Local</th>
+                            <th className="p-4">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {filteredTeams.map((t) => (
+                            <tr key={t.id} className="hover:bg-stone-50/50 transition-colors">
+                              <td className="p-4 min-w-[250px]">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-full border border-stone-200 bg-stone-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                    {t.playerPhoto ? (
+                                      <img src={t.playerPhoto} className={`w-full h-full object-cover ${!t.isVerified ? 'grayscale' : ''}`} alt={t.playerName} />
+                                    ) : (
+                                      <Camera size={20} className="text-stone-300" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-bold text-sky-950 text-sm">{t.playerName}</p>
+                                      {!t.isVerified && <span className="bg-orange-100 text-orange-600 text-[9px] uppercase font-black px-2 py-0.5 rounded flex-shrink-0">Pendente</span>}
+                                      {t.isVerified && <CheckCircle size={14} className="text-orange-400" />}
+                                    </div>
+                                    <p className="text-xs text-stone-500">{t.nickname ? `"${t.nickname}"` : t.birthDate ? new Date(t.birthDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <p className="font-bold text-sm text-stone-800">{t.teamName}</p>
+                              </td>
+                              <td className="p-4">
+                                <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2.5 py-1 rounded-lg">{t.position || '-'}</span>
+                              </td>
+                              <td className="p-4 text-sm text-stone-600 font-medium">
+                                <div className="flex flex-col">
+                                  <span>{t.city || '-'}</span>
+                                  <span className="text-xs text-stone-400">{t.state || '-'}</span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex gap-2">
+                                  {!t.isVerified && (user?.email === 'allan.muniz88@gmail.com') && (
+                                    <button 
+                                      onClick={() => handleApprove(t.id)}
+                                      className="bg-stone-900 text-orange-400 font-bold px-3 py-1.5 rounded-lg hover:bg-stone-800 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
+                                    >
+                                      <ShieldCheck size={14} /> Aprovar
+                                    </button>
+                                  )}
+                                  {t.ownerId === user?.uid && (
+                                    <button
+                                      onClick={() => handleEdit(t)}
+                                      className="bg-white text-sky-700 font-bold px-3 py-1.5 rounded-lg border border-sky-100 hover:bg-sky-50 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
+                                    >
+                                      <Edit size={14} /> Editar
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
