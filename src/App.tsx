@@ -1,8 +1,32 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List, X } from 'lucide-react';
+import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List, X, Printer, PartyPopper } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
+
+const getBirthdayStatus = (dateStr: string | undefined) => {
+  if (!dateStr || dateStr.length !== 10) return null;
+  const [d, m] = dateStr.split('/');
+  const bMonth = parseInt(m, 10) - 1;
+  const bDay = parseInt(d, 10);
+  if (isNaN(bMonth) || isNaN(bDay)) return null;
+
+  const today = new Date();
+  const tMonth = today.getMonth();
+  const tDay = today.getDate();
+
+  if (bMonth === tMonth && bDay === tDay) return 'today';
+  
+  const todayDate = new Date(today.getFullYear(), tMonth, tDay);
+  let nextBday = new Date(today.getFullYear(), bMonth, bDay);
+  if (nextBday.getTime() < todayDate.getTime()) {
+    nextBday.setFullYear(today.getFullYear() + 1);
+  }
+  const diffDays = Math.ceil((nextBday.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)); 
+  if (diffDays > 0 && diffDays <= 7) return 'upcoming';
+  
+  return null;
+};
 
 enum OperationType {
   CREATE = 'create',
@@ -99,8 +123,9 @@ export default function App() {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'cadastro' | 'galeria'>('galeria');
+  const [currentView, setCurrentView] = useState<'cadastro' | 'galeria' | 'squad'>('galeria');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedSquadPlayers, setSelectedSquadPlayers] = useState<any[]>([]);
   
   const [form, setForm] = useState({
     teamName: '',
@@ -245,6 +270,25 @@ export default function App() {
       val = `${val.slice(0, 10)}-${val.slice(10)}`;
     }
     setForm(prev => ({ ...prev, phone: val }));
+  };
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 0) {
+        if (val.length === 1) val = `0,0${val}`;
+        else if (val.length === 2) val = `0,${val}`;
+        else {
+            val = val.slice(0, 3);
+            val = `${val.slice(0, 1)},${val.slice(1)}`;
+        }
+    }
+    setForm(prev => ({ ...prev, height: val }));
+  };
+
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 3) val = val.slice(0, 3); // Max 999kg
+    setForm(prev => ({ ...prev, weight: val }));
   };
 
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,8 +437,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 font-sans text-stone-900 pb-12">
       {/* Header Style (Beach & Ocean Vibes) */}
-      <nav className="bg-sky-900 p-4 text-white shadow-md relative z-10 overflow-hidden border-b-4 border-orange-500">
-        <div className="absolute inset-0 z-0">
+      <nav className="bg-emerald-900 p-4 text-white shadow-md relative z-10 overflow-hidden border-b-4 border-yellow-500 print:hidden">
+        <div className="absolute inset-0 z-0 bg-emerald-900">
           <img src="https://images.unsplash.com/photo-1544605481-64ffdc61922c?w=1600&q=80" className="w-full h-full object-cover opacity-20 mix-blend-overlay" alt="Beach Net" />
         </div>
         <div className="max-w-6xl mx-auto flex justify-between items-center relative z-10">
@@ -403,18 +447,24 @@ export default function App() {
               <Trophy className="text-orange-400" /> Beach Soccer
             </h1>
             {user && (
-              <div className="hidden md:flex bg-sky-900/40 p-1 rounded-xl">
+              <div className="hidden md:flex bg-emerald-900/60 p-1 rounded-xl backdrop-blur-sm border border-white/10">
                  <button 
                    onClick={() => setCurrentView('galeria')}
-                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'galeria' ? 'bg-orange-500 shadow-sm' : 'hover:bg-sky-700/50 text-sky-100'}`}
+                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'galeria' ? 'bg-orange-500 shadow-sm' : 'hover:bg-emerald-700/50 text-emerald-100'}`}
                  >
                    <Users size={18} /> Elencos
                  </button>
                  <button 
                    onClick={() => setCurrentView('cadastro')}
-                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'cadastro' ? 'bg-orange-500 shadow-sm' : 'hover:bg-sky-700/50 text-sky-100'}`}
+                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'cadastro' ? 'bg-orange-500 shadow-sm' : 'hover:bg-emerald-700/50 text-emerald-100'}`}
                  >
                    <PlusCircle size={18} /> Nova Ficha
+                 </button>
+                 <button 
+                   onClick={() => setCurrentView('squad')}
+                   className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${currentView === 'squad' ? 'bg-orange-500 shadow-sm' : 'hover:bg-emerald-700/50 text-emerald-100'}`}
+                 >
+                   <Trophy size={18} /> Montar Time
                  </button>
               </div>
             )}
@@ -422,12 +472,15 @@ export default function App() {
           {user ? (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold">{user.displayName}</p>
-                <p className="text-xs text-sky-200">{user.email}</p>
+                <p className="text-sm font-bold text-white drop-shadow-sm">{user.displayName}</p>
+                <p className="text-xs text-emerald-100 mt-0.5">{user.email}</p>
               </div>
+              {user.photoURL && (
+                <img src={user.photoURL} alt="Avatar do Jogador" className="w-10 h-10 rounded-full border-2 border-orange-400 shadow-md object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+              )}
               <button
                 onClick={handleLogout}
-                className="bg-sky-950 hover:bg-stone-900 px-3 py-2 rounded-lg flex items-center gap-2 transition-all shadow-sm"
+                className="bg-emerald-950/80 hover:bg-stone-900 px-3 py-2 rounded-lg flex items-center gap-2 transition-all border border-emerald-800 shadow-sm ml-2"
               >
                 <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
               </button>
@@ -445,18 +498,24 @@ export default function App() {
 
       {/* Navegação Mobile */}
       {user && (
-        <div className="md:hidden flex bg-sky-900 p-2 shadow-inner gap-2">
+        <div className="md:hidden flex bg-emerald-900 p-2 shadow-inner gap-2 overflow-x-auto print:hidden">
            <button 
              onClick={() => setCurrentView('galeria')}
-             className={`flex-1 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'galeria' ? 'bg-orange-500 text-white shadow-sm' : 'bg-sky-800 text-sky-200 hover:bg-sky-700'}`}
+             className={`flex-none px-4 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'galeria' ? 'bg-orange-500 text-white shadow-sm' : 'bg-emerald-800 text-emerald-200 hover:bg-emerald-700'}`}
            >
              <Users size={16} /> Elencos
            </button>
            <button 
              onClick={() => setCurrentView('cadastro')}
-             className={`flex-1 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'cadastro' ? 'bg-orange-500 text-white shadow-sm' : 'bg-sky-800 text-sky-200 hover:bg-sky-700'}`}
+             className={`flex-none px-4 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'cadastro' ? 'bg-orange-500 text-white shadow-sm' : 'bg-emerald-800 text-emerald-200 hover:bg-emerald-700'}`}
            >
              <PlusCircle size={16} /> Nova Ficha
+           </button>
+           <button 
+             onClick={() => setCurrentView('squad')}
+             className={`flex-none px-4 py-2.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${currentView === 'squad' ? 'bg-orange-500 text-white shadow-sm' : 'bg-emerald-800 text-emerald-200 hover:bg-emerald-700'}`}
+           >
+             <Trophy size={16} /> Montar Time
            </button>
         </div>
       )}
@@ -485,13 +544,13 @@ export default function App() {
         ) : (
           <div>
             {currentView === 'cadastro' && (
-              <div className="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-[32px] shadow-sm border border-sky-100">
+              <div className="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-[32px] shadow-sm border border-emerald-100">
                 <div className="flex items-center gap-4 mb-10">
                   <div className="bg-orange-100 p-4 rounded-2xl text-orange-600">
                     <PlusCircle size={32} />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black text-sky-900 leading-tight tracking-tight">{editingId ? 'Editar Ficha' : 'Ficha de Inscrição'}</h2>
+                    <h2 className="text-3xl font-black text-emerald-900 leading-tight tracking-tight">{editingId ? 'Editar Ficha' : 'Ficha de Inscrição'}</h2>
                     <p className="text-stone-500 font-medium">Preencha os dados do atleta para avaliação</p>
                   </div>
                 </div>
@@ -499,7 +558,7 @@ export default function App() {
                 <form onSubmit={handleSubmit} className="flex flex-col gap-8">
                   {/* Informações do Clube */}
                   <div>
-                    <h3 className="font-bold text-sky-800 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm border-b border-sky-100 pb-2">Informações do Clube</h3>
+                    <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm border-b border-emerald-100 pb-2">Informações do Clube</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Clube / Time</label>
@@ -657,12 +716,12 @@ export default function App() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Altura</label>
+                        <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Altura (m)</label>
                         <input
                           className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                          placeholder="Ex: 1.83"
+                          placeholder="Ex: 1,83"
                           value={form.height}
-                          onChange={(e) => setForm({ ...form, height: e.target.value })}
+                          onChange={handleHeightChange}
                         />
                       </div>
                       <div>
@@ -671,7 +730,7 @@ export default function App() {
                           className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
                           placeholder="Ex: 78"
                           value={form.weight}
-                          onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                          onChange={handleWeightChange}
                         />
                       </div>
                     </div>
@@ -702,7 +761,7 @@ export default function App() {
 
                   <div className="border-t border-stone-100 pt-6 mt-4">
                     <button
-                      className="w-full bg-sky-800 text-white p-4 rounded-xl font-black text-lg uppercase tracking-wide hover:bg-sky-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
+                      className="w-full bg-emerald-800 text-white p-4 rounded-xl font-black text-lg uppercase tracking-wide hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
                       disabled={loading}
                     >
                       {loading ? 'Processando Ficha...' : (editingId ? 'Atualizar Ficha' : 'Enviar Inscrição')}
@@ -723,10 +782,10 @@ export default function App() {
             )}
 
             {currentView === 'galeria' && (
-              <div>
-                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+              <div className="print:block">
+                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 print:hidden">
                     <div>
-                      <h2 className="text-3xl lg:text-4xl font-black text-sky-900 leading-tight uppercase tracking-tight">Galeria de Atletas</h2>
+                      <h2 className="text-3xl lg:text-4xl font-black text-emerald-900 leading-tight uppercase tracking-tight">Galeria de Atletas</h2>
                       <p className="text-stone-500 font-medium mt-1">Conheça as estrelas dos clubes do torneio</p>
                     </div>
                     {user.email === 'allan.muniz88@gmail.com' && (
@@ -741,7 +800,7 @@ export default function App() {
                    <div className="flex flex-wrap lg:flex-nowrap gap-4 w-full">
                      <div className="flex-1 min-w-[200px]">
                        <label className="text-xs font-bold text-stone-500 uppercase ml-1">Clube</label>
-                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-emerald-500 focus-within:bg-white transition-all mt-1">
                          <Search size={18} className="text-stone-400" />
                          <input 
                            className="bg-transparent outline-none w-full text-sm font-medium" 
@@ -753,7 +812,7 @@ export default function App() {
                      </div>
                      <div className="flex-1 min-w-[200px]">
                        <label className="text-xs font-bold text-stone-500 uppercase ml-1">Cidade</label>
-                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-sky-500 focus-within:bg-white transition-all mt-1">
+                       <div className="flex items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200 focus-within:border-emerald-500 focus-within:bg-white transition-all mt-1">
                          <MapPin size={18} className="text-stone-400" />
                          <input 
                            className="bg-transparent outline-none w-full text-sm font-medium" 
@@ -766,7 +825,7 @@ export default function App() {
                      <div className="flex-1 min-w-[150px]">
                        <label className="text-xs font-bold text-stone-500 uppercase ml-1">Posição</label>
                        <select
-                         className="w-full bg-stone-50 border border-stone-200 p-3 text-sm rounded-xl focus:border-sky-500 focus:bg-white outline-none transition-all font-medium text-stone-700 mt-1"
+                         className="w-full bg-stone-50 border border-stone-200 p-3 text-sm rounded-xl focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium text-stone-700 mt-1"
                          value={filterPosition}
                          onChange={(e) => setFilterPosition(e.target.value)}
                        >
@@ -780,6 +839,13 @@ export default function App() {
                    </div>
 
                    <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-xl border border-stone-200 self-end md:self-auto w-full md:w-auto justify-center">
+                     <button 
+                       onClick={() => window.print()}
+                       className="p-2.5 rounded-lg transition-all flex items-center justify-center text-stone-400 hover:text-stone-600 print:hidden hidden md:block border-r border-stone-200 mr-1 pr-3"
+                       title="Imprimir Posições"
+                     >
+                       <Printer size={20} />
+                     </button>
                      <button 
                        onClick={() => setViewMode('cards')}
                        className={`p-2.5 rounded-lg transition-all flex items-center justify-center ${viewMode === 'cards' ? 'bg-white text-orange-500 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
@@ -818,7 +884,7 @@ export default function App() {
                         )}
                         
                         {/* Header: Club Info */}
-                        <div className="bg-gradient-to-r from-sky-900 to-sky-800 text-white p-5 pb-10 relative flex justify-between items-start">
+                        <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-5 pb-10 relative flex justify-between items-start">
                            <div>
                              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-bold mb-1">Clube Atual</p>
                              <h3 className="font-black text-lg leading-tight truncate max-w-[180px]" title={t.teamName}>{t.teamName}</h3>
@@ -835,7 +901,11 @@ export default function App() {
                                  <Camera size={32} className="text-stone-300" />
                               )}
                            </div>
-                           <h2 className="font-black text-[22px] text-sky-950 mt-3 text-center leading-tight truncate w-full">{t.playerName}</h2>
+                           <h2 className="font-black text-[22px] text-emerald-950 mt-3 text-center leading-tight truncate w-full flex items-center justify-center gap-1">
+                             {t.playerName}
+                             {getBirthdayStatus(t.birthDate) === 'today' && <PartyPopper size={20} className="text-rose-500 animate-bounce flex-shrink-0" title="Aniversário Hoje!" />}
+                             {getBirthdayStatus(t.birthDate) === 'upcoming' && <PartyPopper size={18} className="text-amber-500 flex-shrink-0" title="Aniversário chegando!" />}
+                           </h2>
                            {t.nickname ? (
                              <p className="text-sm text-orange-600 font-bold mt-0.5 mb-2">"{t.nickname}"</p>
                            ) : (
@@ -859,7 +929,7 @@ export default function App() {
                               </div>
                               <div>
                                  <p className="text-[10px] uppercase font-bold text-stone-400">Cidade</p>
-                                 <p className="font-bold text-stone-800 flex items-center gap-1"><MapPin size={12} className="text-sky-500 opacity-70"/> <span className="truncate max-w-[80px]" title={t.city}>{t.city || '-'}</span></p>
+                                 <p className="font-bold text-stone-800 flex items-center gap-1"><MapPin size={12} className="text-emerald-500 opacity-70"/> <span className="truncate max-w-[80px]" title={t.city}>{t.city || '-'}</span></p>
                               </div>
                               <div>
                                  <p className="text-[10px] uppercase font-bold text-stone-400">Altura/Peso</p>
@@ -895,7 +965,7 @@ export default function App() {
                              {t.ownerId === user.uid && (
                                <button
                                  onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
-                                 className="w-full bg-white text-sky-700 font-bold py-2.5 rounded-xl border-2 border-sky-100 hover:bg-sky-50 hover:border-sky-200 transition-colors text-xs flex items-center justify-center gap-2"
+                                 className="w-full bg-white text-emerald-700 font-bold py-2.5 rounded-xl border-2 border-emerald-100 hover:bg-emerald-50 hover:border-emerald-200 transition-colors text-xs flex items-center justify-center gap-2"
                                >
                                  <Edit size={14} /> Editar Ficha
                                </button>
@@ -932,7 +1002,11 @@ export default function App() {
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className="font-bold text-sky-950 text-sm">{t.playerName}</p>
+                                      <p className="font-bold text-emerald-950 text-sm flex items-center gap-1">
+                                         {t.playerName}
+                                         {getBirthdayStatus(t.birthDate) === 'today' && <PartyPopper size={14} className="text-rose-500 animate-bounce flex-shrink-0" title="Aniversário Hoje!" />}
+                                         {getBirthdayStatus(t.birthDate) === 'upcoming' && <PartyPopper size={14} className="text-amber-500 flex-shrink-0" title="Aniversário chegando!" />}
+                                       </p>
                                       {!t.isVerified && <span className="bg-orange-100 text-orange-600 text-[9px] uppercase font-black px-2 py-0.5 rounded flex-shrink-0">Pendente</span>}
                                       {t.isVerified && <CheckCircle size={14} className="text-orange-400" />}
                                     </div>
@@ -950,7 +1024,7 @@ export default function App() {
                                 <p className="font-bold text-sm text-stone-800">{t.teamName}</p>
                               </td>
                               <td className="p-4">
-                                <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2.5 py-1 rounded-lg">{t.position || '-'}</span>
+                                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg">{t.position || '-'}</span>
                               </td>
                               <td className="p-4 text-sm text-stone-600 font-medium">
                                 <div className="flex flex-col">
@@ -971,7 +1045,7 @@ export default function App() {
                                   {t.ownerId === user?.uid && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
-                                      className="bg-white text-sky-700 font-bold px-3 py-1.5 rounded-lg border border-sky-100 hover:bg-sky-50 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
+                                      className="bg-white text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-100 hover:bg-emerald-50 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
                                     >
                                       <Edit size={14} /> Editar
                                     </button>
@@ -987,6 +1061,110 @@ export default function App() {
                 )}
               </div>
             )}
+            {currentView === 'squad' && (
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+                  <div>
+                    <h2 className="text-3xl font-black text-emerald-900 tracking-tight flex items-center gap-2">
+                       <Trophy className="text-orange-500" /> Montar Time
+                    </h2>
+                    <p className="text-stone-500 font-medium">Selecione atletas para montar um elenco e imprima a escalação.</p>
+                  </div>
+                  <div className="flex gap-3 print:hidden">
+                    <button 
+                      onClick={() => setSelectedSquadPlayers([])}
+                      className="px-4 py-2 font-bold text-stone-500 hover:text-stone-800 transition-colors"
+                      disabled={selectedSquadPlayers.length === 0}
+                    >
+                      Limpar
+                    </button>
+                    <button 
+                      onClick={() => window.print()}
+                      className="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-orange-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={selectedSquadPlayers.length === 0}
+                    >
+                      <Printer size={18} /> Imprimir / PDF
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-flow-row md:grid-cols-3 gap-8">
+                  {/* Left Column - Library */}
+                  <div className="md:col-span-1 print:hidden bg-white p-4 rounded-2xl border border-stone-200 h-[600px] flex flex-col">
+                    <h3 className="font-bold text-sm uppercase text-stone-500 mb-4 px-2">Atletas Disponíveis</h3>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                      {filteredTeams.map(t => (
+                        <div 
+                          key={t.id} 
+                          className="flex items-center justify-between p-3 bg-stone-50 hover:bg-stone-100 rounded-xl cursor-pointer border border-transparent hover:border-stone-200 transition-colors"
+                          onClick={() => {
+                            if (!selectedSquadPlayers.find(p => p.id === t.id)) {
+                              setSelectedSquadPlayers([...selectedSquadPlayers, t]);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden border border-stone-300 flex-shrink-0 flex items-center justify-center">
+                              {t.playerPhoto ? <img src={t.playerPhoto} className="w-full h-full object-cover" /> : <Camera size={16} className="text-stone-400" />}
+                            </div>
+                            <div>
+                               <p className="font-bold text-sm text-stone-800 leading-tight">{t.playerName}</p>
+                               <p className="text-[10px] uppercase font-bold text-stone-400">{t.position || 'Sem POS'}</p>
+                            </div>
+                          </div>
+                          <PlusCircle size={18} className="text-emerald-600 opacity-50" />
+                        </div>
+                      ))}
+                      {filteredTeams.length === 0 && (
+                        <p className="text-center text-sm text-stone-400 py-6">Nenhum atleta encontrado.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column - Squad Sheet */}
+                  <div className="md:col-span-2 bg-white rounded-3xl border border-stone-200 shadow-sm p-6 md:p-8 min-h-[600px]">
+                    <div className="text-center mb-8 border-b-2 border-stone-100 pb-6 print:border-stone-800">
+                      <h4 className="text-2xl font-black uppercase text-stone-800 tracking-wider">Escalação Oficial</h4>
+                      <p className="text-stone-500 font-medium">Beach Soccer - {new Date().toLocaleDateString('pt-BR')}</p>
+                    </div>
+
+                    {selectedSquadPlayers.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-64 text-stone-300 print:hidden">
+                        <Users size={64} className="mb-4" />
+                        <p className="font-bold text-lg">Selecione atletas na lista ao lado</p>
+                        <p className="text-sm">Eles aparecerão aqui para o seu time.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedSquadPlayers.map((player, idx) => (
+                          <div key={player.id} className="flex items-center gap-4 p-4 border border-stone-200 rounded-xl relative group print:border-b print:border-black print:rounded-none">
+                            <div className="font-black text-2xl text-stone-200 w-8 text-center print:text-black">{idx + 1}</div>
+                            <div className="w-12 h-12 rounded-full border border-stone-300 bg-stone-100 overflow-hidden flex-shrink-0 flex items-center justify-center print:w-16 print:h-16">
+                              {player.playerPhoto ? <img src={player.playerPhoto} className="w-full h-full object-cover" /> : <Camera size={20} className="text-stone-400" />}
+                            </div>
+                            <div className="flex-1">
+                               <p className="font-black text-lg text-stone-800 leading-none">{player.playerName}</p>
+                               <span className="text-xs uppercase font-bold text-stone-500 mr-3">{player.position || '-'}</span>
+                               {player.nickname && <span className="text-xs text-orange-500 font-bold">"{player.nickname}"</span>}
+                            </div>
+                            <div className="text-right hidden sm:block print:block">
+                               <p className="text-[10px] uppercase font-bold text-stone-400">Time / Clube</p>
+                               <p className="font-bold text-sm text-stone-700">{player.teamName}</p>
+                            </div>
+                            <button 
+                              onClick={() => setSelectedSquadPlayers(selectedSquadPlayers.filter(p => p.id !== player.id))}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden shadow-sm"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -997,16 +1175,27 @@ export default function App() {
           <div className="bg-white rounded-[32px] w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden flex flex-col relative animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setSelectedPlayer(null)}
-              className="absolute top-6 right-6 bg-stone-100 hover:bg-stone-200 text-stone-600 p-2 rounded-full transition-colors z-20"
+              className="absolute top-6 right-6 bg-stone-100 hover:bg-stone-200 text-stone-600 p-2 rounded-full transition-colors z-20 print:hidden"
             >
               <X size={24} />
             </button>
             
             {/* Header Modal */}
-            <div className="bg-gradient-to-r from-sky-900 to-sky-800 p-8 pb-32 relative text-white">
-              <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-2">Detalhes do Atleta</p>
-              <h3 className="text-4xl font-black">{selectedPlayer.playerName}</h3>
-              {selectedPlayer.nickname && <p className="text-orange-400 font-bold text-xl mt-1">"{selectedPlayer.nickname}"</p>}
+            <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 p-8 pb-32 relative text-white">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-2">Detalhes do Atleta</p>
+                  <h3 className="text-4xl font-black">{selectedPlayer.playerName}</h3>
+                  {selectedPlayer.nickname && <p className="text-orange-400 font-bold text-xl mt-1">"{selectedPlayer.nickname}"</p>}
+                </div>
+                <button 
+                  onClick={() => window.print()} 
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors print:hidden flex items-center gap-2 font-bold text-sm"
+                  title="Imprimir Ficha"
+                >
+                  <Printer size={18} /> Imprimir / PDF
+                </button>
+              </div>
             </div>
 
             <div className="px-8 pb-8 relative -mt-24">
@@ -1031,7 +1220,7 @@ export default function App() {
                           </div>
 
                           <div className="md:col-span-2 border-t border-stone-100 pt-6">
-                              <h4 className="text-sm font-black text-sky-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Activity size={18} className="text-orange-500" /> Ficha Técnica
                               </h4>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1055,7 +1244,7 @@ export default function App() {
                           </div>
 
                           <div className="md:col-span-2 border-t border-stone-100 pt-6">
-                              <h4 className="text-sm font-black text-sky-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <MapPin size={18} className="text-orange-500" /> Contato e Endereço
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1091,7 +1280,7 @@ export default function App() {
               </div>
               
               {(selectedPlayer.ownerId === user?.uid || (!selectedPlayer.isVerified && user?.email === 'allan.muniz88@gmail.com')) && (
-                <div className="mt-8 flex justify-end gap-3 border-t border-stone-100 pt-6">
+                <div className="mt-8 flex justify-end gap-3 border-t border-stone-100 pt-6 print:hidden">
                     {!selectedPlayer.isVerified && (user?.email === 'allan.muniz88@gmail.com') && (
                       <button 
                         onClick={() => { handleApprove(selectedPlayer.id); setSelectedPlayer(null); }}
@@ -1103,7 +1292,7 @@ export default function App() {
                     {selectedPlayer.ownerId === user?.uid && (
                       <button
                         onClick={() => { handleEdit(selectedPlayer); setSelectedPlayer(null); }}
-                        className="bg-white text-sky-700 font-bold px-6 py-3 rounded-xl border border-sky-100 hover:bg-sky-50 transition-colors text-sm flex items-center justify-center gap-2 shadow-sm"
+                        className="bg-white text-emerald-700 font-bold px-6 py-3 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-colors text-sm flex items-center justify-center gap-2 shadow-sm"
                       >
                         <Edit size={18} /> Editar Cadastro
                       </button>
