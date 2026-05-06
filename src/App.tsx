@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, storage, auth } from './firebase';
 import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Trophy, Camera, CheckCircle, LogOut } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
@@ -57,10 +56,49 @@ function generateId() {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 250;
+        const MAX_HEIGHT = 250;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        // Returns base64 string
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     teamName: '',
     coach: '',
@@ -124,8 +162,13 @@ export default function App() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert('Erro: O domínio atual não está autorizado no Firebase. Adicione este domínio (' + window.location.hostname + ') na seção "Authorized domains" do Firebase Authentication.');
+      } else {
+        alert('Erro ao fazer login: ' + error.message);
+      }
     }
   };
 
@@ -143,12 +186,11 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
       let photoUrl = '';
       if (form.photo) {
-        const storageRef = ref(storage, `players/${user.uid}/${Date.now()}_${form.photo.name}`);
-        await uploadBytes(storageRef, form.photo);
-        photoUrl = await getDownloadURL(storageRef);
+        photoUrl = await compressImage(form.photo);
       }
 
       const pathForWrite = 'teams';
@@ -170,9 +212,10 @@ export default function App() {
 
       alert('Cadastro Realizado!');
       setForm({ teamName: '', coach: '', player: '', photo: null });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Error registering team.');
+      let msg = err.message || String(err);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -268,6 +311,11 @@ export default function App() {
                     />
                   </label>
                 </div>
+                {errorMsg && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-200">
+                    <b>Erro:</b> {errorMsg}
+                  </div>
+                )}
                 <button
                   className="mt-4 w-full bg-orange-500 text-white p-3.5 rounded-xl font-bold hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
                   disabled={loading}

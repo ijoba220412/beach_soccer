@@ -35,7 +35,7 @@ service cloud.firestore {
         && data.isVerified is bool
         && data.createdAt == request.time
         && data.updatedAt == request.time
-        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 2048));
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 300000));
     }
     
     function isValidTeamUpdate(data) {
@@ -48,7 +48,7 @@ service cloud.firestore {
         && data.isVerified == existing().isVerified
         && data.createdAt == existing().createdAt
         && data.updatedAt == request.time
-        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 2048));
+        && (!('playerPhoto' in data) || (data.playerPhoto is string && data.playerPhoto.size() <= 300000));
     }
 
     match /teams/{teamId} {
