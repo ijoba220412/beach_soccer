@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, onSnapshot, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List } from 'lucide-react';
+import { Trophy, Camera, CheckCircle, LogOut, Users, PlusCircle, ShieldCheck, Edit, MapPin, Search, Calendar, Phone, Activity, LayoutGrid, List, X } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -108,6 +108,7 @@ export default function App() {
     player: '',
     nickname: '',
     phone: '',
+    isWhatsapp: false,
     birthDate: '',
     cep: '',
     address: '',
@@ -128,6 +129,7 @@ export default function App() {
   const [filterPosition, setFilterPosition] = useState('');
   // Visualização (Tabela ou Cards)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -214,6 +216,7 @@ export default function App() {
       player: team.playerName || '',
       nickname: team.nickname || '',
       phone: team.phone || '',
+      isWhatsapp: team.isWhatsapp || false,
       birthDate: team.birthDate || '',
       cep: team.cep || '',
       address: team.address || '',
@@ -229,6 +232,19 @@ export default function App() {
     });
     setEditingId(team.id);
     setCurrentView('cadastro');
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 11) val = val.slice(0, 11);
+    
+    if (val.length > 2) {
+      val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
+    }
+    if (val.length > 9) {
+      val = `${val.slice(0, 10)}-${val.slice(10)}`;
+    }
+    setForm(prev => ({ ...prev, phone: val }));
   };
 
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,6 +316,7 @@ export default function App() {
             playerName: form.player,
             nickname: form.nickname,
             phone: form.phone,
+            isWhatsapp: form.isWhatsapp,
             birthDate: form.birthDate,
             cep: form.cep,
             address: form.address,
@@ -328,6 +345,7 @@ export default function App() {
             playerName: form.player,
             nickname: form.nickname,
             phone: form.phone,
+            isWhatsapp: form.isWhatsapp,
             birthDate: form.birthDate,
             cep: form.cep,
             address: form.address,
@@ -350,7 +368,7 @@ export default function App() {
       }
 
       setForm({
-        teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', cep: '', address: '', addressNumber: '', neighborhood: '', city: '', state: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' 
+        teamName: '', coach: '', player: '', nickname: '', phone: '', isWhatsapp: false, birthDate: '', cep: '', address: '', addressNumber: '', neighborhood: '', city: '', state: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' 
       });
       setEditingId(null);
       setCurrentView('galeria');
@@ -375,8 +393,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 font-sans text-stone-900 pb-12">
       {/* Header Style (Beach & Ocean Vibes) */}
-      <nav className="bg-sky-800 p-4 text-white shadow-md relative z-10">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+      <nav className="bg-sky-900 p-4 text-white shadow-md relative z-10 overflow-hidden border-b-4 border-orange-500">
+        <div className="absolute inset-0 z-0">
+          <img src="https://images.unsplash.com/photo-1544605481-64ffdc61922c?w=1600&q=80" className="w-full h-full object-cover opacity-20 mix-blend-overlay" alt="Beach Net" />
+        </div>
+        <div className="max-w-6xl mx-auto flex justify-between items-center relative z-10">
           <div className="flex items-center gap-6">
             <h1 className="text-2xl font-black flex items-center gap-2 uppercase tracking-wide">
               <Trophy className="text-orange-400" /> Beach Soccer
@@ -442,18 +463,24 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4">
         {!user ? (
-          <div className="text-center py-20 px-4 bg-white rounded-3xl shadow-sm border border-stone-200 mt-10">
-            <Trophy size={72} className="mx-auto text-orange-400 mb-6" />
-            <h2 className="text-3xl md:text-5xl font-black text-sky-900 mb-6 uppercase tracking-tight">O Maior Campeonato de Areia</h2>
-            <p className="text-lg text-stone-600 mb-8 max-w-2xl mx-auto">
-              Faça login para gerenciar seu clube, registrar atletas e acompanhar a galeria das feras do beach soccer!
-            </p>
-            <button
-              onClick={handleLogin}
-              className="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-lg hover:bg-orange-400 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block mx-auto"
-            >
-              Começar Agora
-            </button>
+          <div className="text-center py-24 px-4 bg-stone-900 rounded-[32px] shadow-2xl border border-stone-200/20 mt-10 relative overflow-hidden group">
+            <div className="absolute inset-0 z-0">
+              <img src="https://images.unsplash.com/photo-1587329310686-91414b8e3cb7?w=1600&q=80" className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" alt="Soccer ball on beach" />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/60 to-transparent"></div>
+            </div>
+            <div className="relative z-10">
+              <Trophy size={80} className="mx-auto text-orange-400 mb-6 drop-shadow-lg" />
+              <h2 className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tight drop-shadow-md">O Maior Campeonato de Areia</h2>
+              <p className="text-xl text-stone-200 mb-8 max-w-2xl mx-auto font-medium drop-shadow">
+                Faça login para gerenciar seu clube, registrar atletas e acompanhar a galeria das feras do beach soccer!
+              </p>
+              <button
+                onClick={handleLogin}
+                className="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-lg hover:bg-orange-400 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block mx-auto border-2 border-orange-400"
+              >
+                Começar Agora
+              </button>
+            </div>
           </div>
         ) : (
           <div>
@@ -524,10 +551,21 @@ export default function App() {
                         <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Telefone</label>
                         <input
                           className="w-full bg-stone-50 border border-stone-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                          placeholder="(DDD) 99999-9999"
+                          placeholder="(11) 99999-9999"
                           value={form.phone}
-                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                          onChange={handlePhoneChange}
+                          maxLength={15}
                         />
+                        <div className="mt-2 flex items-center gap-2 ml-1">
+                          <input 
+                            type="checkbox" 
+                            id="isWhatsapp" 
+                            checked={form.isWhatsapp} 
+                            onChange={e => setForm({...form, isWhatsapp: e.target.checked})} 
+                            className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500" 
+                          />
+                          <label htmlFor="isWhatsapp" className="text-xs font-bold text-stone-500 cursor-pointer">É WhatsApp?</label>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs uppercase font-bold text-stone-500 mb-1.5 ml-1">Data de Nascimento</label>
@@ -672,7 +710,7 @@ export default function App() {
                     {editingId && (
                       <button
                         type="button"
-                        onClick={() => { setEditingId(null); setForm({ teamName: '', coach: '', player: '', nickname: '', phone: '', birthDate: '', city: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: ''}); setCurrentView('galeria'); }}
+                        onClick={() => { setEditingId(null); setForm({ teamName: '', coach: '', player: '', nickname: '', phone: '', isWhatsapp: false, birthDate: '', cep: '', address: '', addressNumber: '', neighborhood: '', city: '', state: '', position: '', height: '', weight: '', photo: null, existingPhotoUrl: '' }); setCurrentView('galeria'); }}
                         className="mt-3 w-full text-stone-500 p-2 font-bold uppercase text-sm hover:text-stone-800 transition-colors"
                         disabled={loading}
                       >
@@ -770,7 +808,8 @@ export default function App() {
                     {filteredTeams.map((t) => (
                       <div
                         key={t.id}
-                        className="bg-white rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200 flex flex-col relative group"
+                        onClick={() => setSelectedPlayer(t)}
+                        className="bg-white rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl hover:ring-2 hover:ring-orange-500 cursor-pointer transition-all duration-300 border border-stone-200 flex flex-col relative group"
                       >
                         {!t.isVerified && (
                           <div className="absolute top-3 left-3 bg-stone-900/90 text-orange-400 text-[10px] uppercase font-black tracking-wider px-3 py-1.5 rounded-lg z-20 backdrop-blur-md border border-stone-700 shadow-lg">
@@ -802,6 +841,13 @@ export default function App() {
                            ) : (
                              <div className="h-6"></div>
                            )}
+                           
+                           {t.phone && (
+                             <div className="flex items-center gap-1 text-xs text-stone-500 font-medium mb-1">
+                               <Phone size={12} className={t.isWhatsapp ? "text-green-500" : "text-stone-400"} />
+                               {t.phone} {t.isWhatsapp && <span className="text-[10px] text-green-600 font-bold ml-1">(WhatsApp)</span>}
+                             </div>
+                           )}
                         </div>
 
                         {/* Info Grid */}
@@ -822,7 +868,7 @@ export default function App() {
                               <div>
                                  <p className="text-[10px] uppercase font-bold text-stone-400">Nascimento</p>
                                  {t.birthDate ? (
-                                    <p className="font-bold text-stone-800 flex items-center gap-1"><Calendar size={12} className="text-orange-500 opacity-70"/> {new Date(t.birthDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                    <p className="font-bold text-stone-800 flex items-center gap-1"><Calendar size={12} className="text-orange-500 opacity-70"/> {t.birthDate || '-'}</p>
                                  ) : (
                                     <p className="font-bold text-stone-800">-</p>
                                  )}
@@ -833,7 +879,7 @@ export default function App() {
                            <div className="mt-auto space-y-2 pt-2 border-t border-stone-100">
                              {!t.isVerified && (user.email === 'allan.muniz88@gmail.com') && (
                                 <button 
-                                  onClick={() => handleApprove(t.id)}
+                                  onClick={(e) => { e.stopPropagation(); handleApprove(t.id); }}
                                   className="w-full bg-stone-900 text-orange-400 font-bold py-2.5 rounded-xl hover:bg-stone-800 transition-colors text-sm flex items-center justify-center gap-2"
                                 >
                                   <ShieldCheck size={16} /> Aprovar Ficha
@@ -848,7 +894,7 @@ export default function App() {
 
                              {t.ownerId === user.uid && (
                                <button
-                                 onClick={() => handleEdit(t)}
+                                 onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
                                  className="w-full bg-white text-sky-700 font-bold py-2.5 rounded-xl border-2 border-sky-100 hover:bg-sky-50 hover:border-sky-200 transition-colors text-xs flex items-center justify-center gap-2"
                                >
                                  <Edit size={14} /> Editar Ficha
@@ -874,7 +920,7 @@ export default function App() {
                         </thead>
                         <tbody className="divide-y divide-stone-100">
                           {filteredTeams.map((t) => (
-                            <tr key={t.id} className="hover:bg-stone-50/50 transition-colors">
+                            <tr key={t.id} onClick={() => setSelectedPlayer(t)} className="hover:bg-stone-50/50 cursor-pointer transition-colors">
                               <td className="p-4 min-w-[250px]">
                                 <div className="flex items-center gap-4">
                                   <div className="w-12 h-12 rounded-full border border-stone-200 bg-stone-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
@@ -890,7 +936,13 @@ export default function App() {
                                       {!t.isVerified && <span className="bg-orange-100 text-orange-600 text-[9px] uppercase font-black px-2 py-0.5 rounded flex-shrink-0">Pendente</span>}
                                       {t.isVerified && <CheckCircle size={14} className="text-orange-400" />}
                                     </div>
-                                    <p className="text-xs text-stone-500">{t.nickname ? `"${t.nickname}"` : t.birthDate ? new Date(t.birthDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</p>
+                                    <p className="text-xs text-stone-500">{t.nickname ? `"${t.nickname}"` : t.birthDate ? t.birthDate : '-'}</p>
+                                    {t.phone && (
+                                      <p className="text-xs text-stone-500 mt-0.5 flex items-center gap-1">
+                                        <Phone size={10} className={t.isWhatsapp ? "text-green-500" : "text-stone-400"} />
+                                        {t.phone}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -910,7 +962,7 @@ export default function App() {
                                 <div className="flex gap-2">
                                   {!t.isVerified && (user?.email === 'allan.muniz88@gmail.com') && (
                                     <button 
-                                      onClick={() => handleApprove(t.id)}
+                                      onClick={(e) => { e.stopPropagation(); handleApprove(t.id); }}
                                       className="bg-stone-900 text-orange-400 font-bold px-3 py-1.5 rounded-lg hover:bg-stone-800 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
                                     >
                                       <ShieldCheck size={14} /> Aprovar
@@ -918,7 +970,7 @@ export default function App() {
                                   )}
                                   {t.ownerId === user?.uid && (
                                     <button
-                                      onClick={() => handleEdit(t)}
+                                      onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
                                       className="bg-white text-sky-700 font-bold px-3 py-1.5 rounded-lg border border-sky-100 hover:bg-sky-50 transition-colors text-xs flex items-center justify-center gap-1 shadow-sm"
                                     >
                                       <Edit size={14} /> Editar
@@ -938,6 +990,130 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Expanded Details Modal */}
+      {selectedPlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm shadow-2xl transition-opacity animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden flex flex-col relative animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setSelectedPlayer(null)}
+              className="absolute top-6 right-6 bg-stone-100 hover:bg-stone-200 text-stone-600 p-2 rounded-full transition-colors z-20"
+            >
+              <X size={24} />
+            </button>
+            
+            {/* Header Modal */}
+            <div className="bg-gradient-to-r from-sky-900 to-sky-800 p-8 pb-32 relative text-white">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-2">Detalhes do Atleta</p>
+              <h3 className="text-4xl font-black">{selectedPlayer.playerName}</h3>
+              {selectedPlayer.nickname && <p className="text-orange-400 font-bold text-xl mt-1">"{selectedPlayer.nickname}"</p>}
+            </div>
+
+            <div className="px-8 pb-8 relative -mt-24">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                  <div className="w-40 h-40 rounded-full border-4 border-white bg-stone-100 overflow-hidden shadow-xl z-10 flex items-center justify-center relative flex-shrink-0">
+                      {selectedPlayer.playerPhoto ? (
+                        <img src={selectedPlayer.playerPhoto} className={`w-full h-full object-cover ${!selectedPlayer.isVerified ? 'grayscale' : ''}`} alt={selectedPlayer.playerName} />
+                      ) : (
+                        <Camera size={48} className="text-stone-300" />
+                      )}
+                  </div>
+
+                  <div className="flex-1 w-full bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:mt-16">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                          <div>
+                              <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Equipe Atual</p>
+                              <p className="font-black text-2xl text-stone-800 leading-tight">{selectedPlayer.teamName}</p>
+                          </div>
+                          <div>
+                              <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Treinador</p>
+                              <p className="font-bold text-lg text-stone-700">{selectedPlayer.coach || '-'}</p>
+                          </div>
+
+                          <div className="md:col-span-2 border-t border-stone-100 pt-6">
+                              <h4 className="text-sm font-black text-sky-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Activity size={18} className="text-orange-500" /> Ficha Técnica
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Posição</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.position || '-'}</p>
+                                  </div>
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Nascimento</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.birthDate || '-'}</p>
+                                  </div>
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Altura</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.height ? `${selectedPlayer.height}m` : '-'}</p>
+                                  </div>
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Peso</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.weight ? `${selectedPlayer.weight}kg` : '-'}</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div className="md:col-span-2 border-t border-stone-100 pt-6">
+                              <h4 className="text-sm font-black text-sky-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <MapPin size={18} className="text-orange-500" /> Contato e Endereço
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 flex flex-col gap-1 shrink-0">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1">
+                                      <Phone size={12} className={selectedPlayer.isWhatsapp ? "text-green-500" : "text-stone-400"} />
+                                      Telefone
+                                    </p>
+                                    <p className="font-bold text-stone-800 text-lg">
+                                      {selectedPlayer.phone || '-'}
+                                      {selectedPlayer.isWhatsapp && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-black uppercase inline-block align-middle">WhatsApp</span>}
+                                    </p>
+                                  </div>
+                                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 flex flex-col gap-1">
+                                    <p className="text-[10px] uppercase font-bold text-stone-400 leading-tight">Endereço Completo</p>
+                                    <p className="font-bold text-stone-800 text-sm leading-snug">
+                                        {selectedPlayer.address ? (
+                                          <>
+                                            {selectedPlayer.address}, {selectedPlayer.addressNumber || 'S/N'}<br/>
+                                            {selectedPlayer.neighborhood && <>{selectedPlayer.neighborhood}<br/></>}
+                                            {selectedPlayer.city} - {selectedPlayer.state}<br/>
+                                            CEP: {selectedPlayer.cep}
+                                          </>
+                                        ) : (
+                                          <>{selectedPlayer.city ? `${selectedPlayer.city} - ${selectedPlayer.state}` : '-'}</>
+                                        )}
+                                    </p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              
+              {(selectedPlayer.ownerId === user?.uid || (!selectedPlayer.isVerified && user?.email === 'allan.muniz88@gmail.com')) && (
+                <div className="mt-8 flex justify-end gap-3 border-t border-stone-100 pt-6">
+                    {!selectedPlayer.isVerified && (user?.email === 'allan.muniz88@gmail.com') && (
+                      <button 
+                        onClick={() => { handleApprove(selectedPlayer.id); setSelectedPlayer(null); }}
+                        className="bg-stone-900 text-orange-400 font-bold px-6 py-3 rounded-xl hover:bg-stone-800 transition-colors text-sm flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <ShieldCheck size={18} /> Aprovar Ficha
+                      </button>
+                    )}
+                    {selectedPlayer.ownerId === user?.uid && (
+                      <button
+                        onClick={() => { handleEdit(selectedPlayer); setSelectedPlayer(null); }}
+                        className="bg-white text-sky-700 font-bold px-6 py-3 rounded-xl border border-sky-100 hover:bg-sky-50 transition-colors text-sm flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <Edit size={18} /> Editar Cadastro
+                      </button>
+                    )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -37,6 +37,7 @@ service cloud.firestore {
         && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
         && (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 100))
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && (!('isWhatsapp' in data) || data.isWhatsapp is bool)
         && (!('birthDate' in data) || (data.birthDate is string && data.birthDate.size() <= 20))
         && (!('cep' in data) || (data.cep is string && data.cep.size() <= 20))
         && (!('address' in data) || (data.address is string && data.address.size() <= 150))
@@ -61,6 +62,7 @@ service cloud.firestore {
         && data.playerName is string && data.playerName.size() > 0 && data.playerName.size() <= 100
         && (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 100))
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 25))
+        && (!('isWhatsapp' in data) || data.isWhatsapp is bool)
         && (!('birthDate' in data) || (data.birthDate is string && data.birthDate.size() <= 20))
         && (!('cep' in data) || (data.cep is string && data.cep.size() <= 20))
         && (!('address' in data) || (data.address is string && data.address.size() <= 150))
@@ -82,7 +84,7 @@ service cloud.firestore {
       allow list: if resource.data.isVerified == true || (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidId(teamId) && isValidTeam(incoming()) && incoming().isVerified == false;
       allow update: if isAuthenticated() && isValidId(teamId) && (
-        (isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'nickname', 'phone', 'birthDate', 'cep', 'address', 'addressNumber', 'neighborhood', 'city', 'state', 'position', 'height', 'weight', 'playerPhoto', 'updatedAt']))
+        (isOwner(existing().ownerId) && isValidTeamUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['teamName', 'coach', 'playerName', 'nickname', 'phone', 'isWhatsapp', 'birthDate', 'cep', 'address', 'addressNumber', 'neighborhood', 'city', 'state', 'position', 'height', 'weight', 'playerPhoto', 'updatedAt']))
         ||
         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['isVerified', 'updatedAt']) && incoming().isVerified is bool && incoming().updatedAt == request.time)
       );

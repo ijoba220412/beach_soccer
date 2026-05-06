@@ -11,6 +11,7 @@
         "playerName": { "type": "string" },
         "nickname": { "type": "string" },
         "phone": { "type": "string" },
+        "isWhatsapp": { "type": "boolean" },
         "birthDate": { "type": "string" },
         "cep": { "type": "string" },
         "address": { "type": "string" },
