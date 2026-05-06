@@ -273,15 +273,8 @@ export default function App() {
   };
 
   const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length > 0) {
-        if (val.length === 1) val = `0,0${val}`;
-        else if (val.length === 2) val = `0,${val}`;
-        else {
-            val = val.slice(0, 3);
-            val = `${val.slice(0, 1)},${val.slice(1)}`;
-        }
-    }
+    let val = e.target.value.replace(/[^0-9,.]/g, '').replace('.', ',');
+    if (val.length > 4) val = val.slice(0, 4); // Max 4 chars e.g., 1,80
     setForm(prev => ({ ...prev, height: val }));
   };
 
@@ -1171,8 +1164,8 @@ export default function App() {
 
       {/* Expanded Details Modal */}
       {selectedPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm shadow-2xl transition-opacity animate-in fade-in duration-300">
-          <div className="bg-white rounded-[32px] w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden flex flex-col relative animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm shadow-2xl transition-opacity animate-in fade-in duration-300 print:absolute print:inset-0 print:bg-white print:p-0">
+          <div className="bg-white rounded-[32px] w-full max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden flex flex-col relative animate-in zoom-in-95 duration-300 print:max-h-none print:overflow-visible print:rounded-none">
             <button 
               onClick={() => setSelectedPlayer(null)}
               className="absolute top-6 right-6 bg-stone-100 hover:bg-stone-200 text-stone-600 p-2 rounded-full transition-colors z-20 print:hidden"
@@ -1181,12 +1174,10 @@ export default function App() {
             </button>
             
             {/* Header Modal */}
-            <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 p-8 pb-32 relative text-white">
+            <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 p-8 pb-32 relative text-white print:!bg-none print:!bg-transparent print:pb-8 print:border-b print:border-stone-200">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-2">Detalhes do Atleta</p>
-                  <h3 className="text-4xl font-black">{selectedPlayer.playerName}</h3>
-                  {selectedPlayer.nickname && <p className="text-orange-400 font-bold text-xl mt-1">"{selectedPlayer.nickname}"</p>}
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-orange-400 print:text-stone-500 mb-2">FICHA DE ATLETA</p>
                 </div>
                 <button 
                   onClick={() => window.print()} 
@@ -1198,9 +1189,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="px-8 pb-8 relative -mt-24">
-              <div className="flex flex-col md:flex-row gap-8 items-start">
-                  <div className="w-40 h-40 rounded-full border-4 border-white bg-stone-100 overflow-hidden shadow-xl z-10 flex items-center justify-center relative flex-shrink-0">
+            <div className="px-8 pb-8 relative -mt-24 print:mt-8 print:px-8">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative print:static">
+                  <div className="w-40 h-40 rounded-full border-4 border-white print:border-stone-200 bg-stone-100 overflow-hidden shadow-xl z-10 flex items-center justify-center relative flex-shrink-0">
                       {selectedPlayer.playerPhoto ? (
                         <img src={selectedPlayer.playerPhoto} className={`w-full h-full object-cover ${!selectedPlayer.isVerified ? 'grayscale' : ''}`} alt={selectedPlayer.playerName} />
                       ) : (
@@ -1208,7 +1199,25 @@ export default function App() {
                       )}
                   </div>
 
-                  <div className="flex-1 w-full bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:mt-16">
+                  <div className="z-10 mt-2 md:mt-4 text-center md:text-left">
+                     <h3 className="text-3xl md:text-4xl font-black text-white print:text-stone-900 flex flex-wrap items-center justify-center md:justify-start gap-2 drop-shadow-sm print:drop-shadow-none">
+                        {selectedPlayer.playerName}
+                        {getBirthdayStatus(selectedPlayer.birthDate) === 'today' && <PartyPopper size={24} className="text-rose-400 animate-bounce flex-shrink-0 print:hidden" title="Aniversário Hoje!" />}
+                        {getBirthdayStatus(selectedPlayer.birthDate) === 'upcoming' && <PartyPopper size={24} className="text-amber-400 flex-shrink-0 print:hidden" title="Aniversário chegando!" />}
+                     </h3>
+                     {selectedPlayer.nickname && <p className="text-orange-400 print:text-orange-600 font-bold text-xl mt-1 drop-shadow-sm print:drop-shadow-none">"{selectedPlayer.nickname}"</p>}
+                     
+                     {selectedPlayer.birthDate && (
+                         <div className="flex bg-stone-900/60 print:bg-stone-100 backdrop-blur-sm print:backdrop-blur-none px-4 py-2 rounded-xl border border-white/10 print:border-stone-200 mt-4 inline-flex items-center gap-2 mx-auto md:mx-0">
+                           <Calendar size={16} className="text-orange-400 print:text-stone-500" /> 
+                           <span className="text-stone-200 print:text-stone-600 font-medium text-sm">Nascimento:</span>
+                           <span className="font-bold text-white print:text-stone-900">{selectedPlayer.birthDate}</span>
+                         </div>
+                     )}
+                  </div>
+              </div>
+
+              <div className="w-full bg-white rounded-2xl shadow-sm border border-stone-100 p-6 mt-8 print:border-none print:shadow-none print:p-0 print:mt-10">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                           <div>
                               <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Equipe Atual</p>
@@ -1229,8 +1238,8 @@ export default function App() {
                                     <p className="font-black text-stone-800 mt-1">{selectedPlayer.position || '-'}</p>
                                   </div>
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
-                                    <p className="text-[10px] uppercase font-bold text-stone-400">Nascimento</p>
-                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.birthDate || '-'}</p>
+                                    <p className="text-[10px] uppercase font-bold text-stone-400">Idade / Ano</p>
+                                    <p className="font-black text-stone-800 mt-1">{selectedPlayer.birthDate ? selectedPlayer.birthDate.split('/')[2] : '-'}</p>
                                   </div>
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100">
                                     <p className="text-[10px] uppercase font-bold text-stone-400">Altura</p>
@@ -1250,12 +1259,12 @@ export default function App() {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 flex flex-col gap-1 shrink-0">
                                     <p className="text-[10px] uppercase font-bold text-stone-400 flex items-center gap-1">
-                                      <Phone size={12} className={selectedPlayer.isWhatsapp ? "text-green-500" : "text-stone-400"} />
+                                      <Phone size={12} className={selectedPlayer.isWhatsapp ? "text-green-500 print:text-stone-600" : "text-stone-400"} />
                                       Telefone
                                     </p>
                                     <p className="font-bold text-stone-800 text-lg">
                                       {selectedPlayer.phone || '-'}
-                                      {selectedPlayer.isWhatsapp && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-black uppercase inline-block align-middle">WhatsApp</span>}
+                                      {selectedPlayer.isWhatsapp && <span className="ml-2 text-[10px] bg-green-100 text-green-700 print:bg-stone-100 print:text-stone-600 px-2 py-0.5 rounded-full font-black uppercase inline-block align-middle">WhatsApp</span>}
                                     </p>
                                   </div>
                                   <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 flex flex-col gap-1">
@@ -1276,7 +1285,6 @@ export default function App() {
                               </div>
                           </div>
                       </div>
-                  </div>
               </div>
               
               {(selectedPlayer.ownerId === user?.uid || (!selectedPlayer.isVerified && user?.email === 'allan.muniz88@gmail.com')) && (
